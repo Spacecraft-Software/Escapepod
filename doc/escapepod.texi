@@ -1,0 +1,926 @@
+\input texinfo   @c -*- texinfo -*-
+@c SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+@c SPDX-License-Identifier: CC-BY-SA-4.0
+@c %**start of header
+@setfilename escapepod.info
+@documentencoding UTF-8
+@documentlanguage en
+@settitle Escape Pod Manual 0.1
+@c %**end of header
+
+@set PROJECT Escape Pod
+@set VERSION 0.1
+@set UPDATED 2026-10-08
+@set SUBDOMAIN https://EscapePod.SpacecraftSoftware.org/
+
+@copying
+This manual is for @value{PROJECT} (version @value{VERSION}, updated
+@value{UPDATED}).  Maintainer: Mohamed Hammad
+<@email{Mohamed.Hammad@@SpacecraftSoftware.org}>.  Project page:
+@url{@value{SUBDOMAIN}}.
+
+Copyright @copyright{} 2026 Mohamed Hammad & Spacecraft Software.
+
+@quotation
+This document is licensed under the Creative Commons Attribution-ShareAlike
+4.0 International License (CC-BY-SA-4.0).  To view a copy of this licence,
+visit @url{https://creativecommons.org/licenses/by-sa/4.0/}.
+@end quotation
+@end copying
+
+@dircategory Spacecraft Software
+@direntry
+* Escape Pod: (escapepod).      Tap a key for one key, hold it for another.
+@end direntry
+
+@titlepage
+@title @value{PROJECT} Manual
+@subtitle For version @value{VERSION}, @value{UPDATED}
+@author Mohamed Hammad
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top Escape Pod
+
+Escape Pod gives one key two jobs: tapped on its own it sends one key,
+held together with other keys it acts as a modifier.  It is the Spacecraft
+Software successor to xcape.
+
+This edition carries the needs and the software requirements specification
+for version @value{VERSION}, at assurance Category B (The Steelbore Standard
+§19).  Status: draft, awaiting gate G1.
+
+@insertcopying
+@end ifnottex
+
+@menu
+* Terminology::         Terms used with one meaning throughout.
+* Needs::               Why Escape Pod exists.
+* Requirements::        What Escape Pod shall do.
+@end menu
+
+@node Terminology
+@chapter Terminology
+
+@table @dfn
+@item dual-role key
+A physical key configured with a @dfn{hold key} and a @dfn{tap key}.
+@item hold key
+The key a dual-role key emits while it is held, for example Left Control.
+@item tap key
+The key a dual-role key emits when it is tapped, for example Escape.
+@item remap
+A one-to-one mapping in which every event of a source key is emitted as the
+same event of a target key.
+@item managed key
+A key named in the active configuration as a dual-role key or a remap source.
+@item protected key
+A key the engine leaves unmapped regardless of the configuration.
+@item tap timeout
+The longest interval between the press and the release of a dual-role key
+for which that release still counts as a tap.
+@item used
+A dual-role key is @dfn{used} once any other key press, or any pointer button
+press, arrives between its press and its release.
+@item engine
+The @code{escapepod-core} state machine.
+@item daemon
+A running @code{escapepod daemon run} process.
+@item evdev backend
+The daemon mode that grabs kernel input devices and writes to a uinput
+virtual device.
+@item X11 backend
+The daemon mode that observes keys through the X RECORD extension and
+injects tap keys through the XTEST extension.
+@item agent environment
+A process environment in which @env{AI_AGENT} or @env{AGENT} is set to a
+non-empty value, or @env{CI} is set to a value other than @samp{0} or
+@samp{false}.
+@item emergency chord
+A set of physical keys which, held together, makes the daemon release every
+grab and exit.
+@item reference machine
+A 2-core x86-64 machine with 4 GiB of RAM, the low-end baseline for
+measuring budgets; the exact model and workload are recorded at gate G2
+under §22.4.
+@end table
+
+@node Needs
+@chapter Needs
+
+@table @asis
+@item ESC-NEED-001 @emph{One key, two jobs}
+A Vim user who has moved Control to the Caps Lock position wants that key to
+send Escape when tapped and act as Control when held, so that both stay under
+the left little finger.
+
+@item ESC-NEED-002 @emph{Every session}
+The behaviour works the same under X11, under Wayland compositors, and on the
+Linux console, and still works in an X11 session where the user cannot be
+given access to kernel input devices.
+
+@item ESC-NEED-003 @emph{Never stranded}
+A failure, crash, misconfiguration, or reload never leaves the user without a
+working keyboard, and a stuck modifier never outlives the process.
+
+@item ESC-NEED-004 @emph{Keystrokes stay private}
+Installing Escape Pod does not give the user's login account, the user's other
+programs, or an AI agent working for the user any ability to read keystrokes
+that they did not have before.
+
+@item ESC-NEED-005 @emph{No perceptible delay}
+Typing through Escape Pod is indistinguishable from typing without it, and an
+idle daemon costs no power.
+
+@item ESC-NEED-006 @emph{Operable by people and agents}
+The tool is configured, inspected, and diagnosed from the command line by a
+person at a terminal or by an AI agent, under the Spacecraft Software CLI
+Standard.
+
+@item ESC-NEED-007 @emph{Assistive technology first}
+Escape Pod never takes a key away from a screen reader that relies on it.
+
+@item ESC-NEED-008 @emph{xcape users can move over}
+A user of xcape can switch with the mapping string they already use.
+@end table
+
+Constraints the maintainer will not trade away: the scope stays a dual-role
+and one-to-one remapper (no layers, macros, or chords); tapping is
+pass-through (the hold key is emitted at once, never buffered); the platform
+is Linux; the language is Rust.
+
+@node Requirements
+@chapter Requirements
+
+Every requirement uses the §20.6 sentence pattern and carries the five
+§20.3 attributes.
+
+@menu
+* Foundation::                  ESC-SRS-001 to 008.
+* Engine::                      ESC-SRS-009 to 021.
+* Command line::                ESC-SRS-022 to 042, 090 to 095.
+* evdev backend::               ESC-SRS-043 to 062, 096 to 099.
+* X11 backend::                 ESC-SRS-063 to 068, 088, 100 to 102.
+* Packaging and privileges::    ESC-SRS-069 to 078, 089.
+* Verification::                ESC-SRS-079 to 087.
+@end menu
+
+@node Foundation
+@section Foundation
+
+@table @asis
+@item ESC-SRS-001 @emph{REUSE}
+The repository shall pass @command{reuse lint} with exit status 0.
+
+Rationale: every file needs a machine-readable licence. Source: Standard
+§4.3. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-002 @emph{Posture files}
+The repository shall carry @file{README.md}, @file{NOTICE.md},
+@file{CONTRIBUTING.md}, @file{LICENSE}, and @file{LICENSES/} at its root.
+
+Rationale: the project posture is stated where a reader looks first.
+Source: Standard §5.2. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-003 @emph{Agent context files}
+The repository shall carry @file{AGENTS.md}, @file{CLAUDE.md}, and
+@file{SKILL.md} at its root.
+
+Rationale: agents load project invariants from these files. Source: Standard
+§5.7; CLI Standard rule 4. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-004 @emph{Category declared}
+@file{README.md}, @file{AGENTS.md}, and the @file{PROJECTS.md} registry
+shall each declare assurance Category B.
+
+Rationale: the category decides the evidence owed. Source: Standard
+§19.2. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-005 @emph{Security policy}
+The repository shall carry a @file{SECURITY.md} naming the reporting
+channel, acknowledgement target, scope, supported versions, disclosure
+terms, and credit policy.
+
+Rationale: the daemon handles every keystroke, so a reporting path is
+needed. Source: Standard §26. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-006 @emph{Tailoring register}
+The repository shall carry a @file{COMPLIANCE.md} holding the §19.5
+tailoring register.
+
+Rationale: Category B records tailoring in a dedicated file. Source:
+Standard §19.5. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-007 @emph{CI gate}
+The CI pipeline shall block a merge unless @command{cargo fmt --check},
+@command{cargo clippy --all-targets --all-features --locked -- -D warnings},
+@command{cargo test}, @command{cargo audit}, and @command{cargo deny check}
+each exit with status 0.
+
+Rationale: defects and vulnerable dependencies are caught before merge.
+Source: Standard §3.3, §24.2. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-008 @emph{Text format}
+The CI pipeline shall fail when a tracked text file contains a carriage
+return byte.
+
+Rationale: line endings stay LF across contributors. Source: Standard
+§6.5. Method: test. Priority: mandatory. Status: draft.
+@end table
+
+@node Engine
+@section Engine
+
+@table @asis
+@item ESC-SRS-009 @emph{Hold key at once}
+When a dual-role key is pressed, the engine shall emit the press of its hold
+key in the output for that same input event.
+
+Rationale: pass-through adds no delay to modifier use. Source: ESC-NEED-005.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-010 @emph{Tap on lone quick release}
+When a dual-role key that is not used is released no later than the tap
+timeout after its press, the engine shall emit, after the release of the
+hold key, one press and one release of the tap key.
+
+Rationale: this is the core behaviour. Source: ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-011 @emph{No tap after another key}
+When another key is pressed between the press and the release of a
+dual-role key, the engine shall not emit the tap key for that release.
+
+Rationale: a modifier chord must not also send the tap key. Source:
+ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-012 @emph{No tap after a pointer button}
+When a pointer button is pressed between the press and the release of a
+dual-role key, the engine shall not emit the tap key for that release.
+
+Rationale: xcape sent a stray Escape after Control-click. Source:
+ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-013 @emph{No tap after the timeout}
+When a dual-role key is released later than the tap timeout after its
+press, the engine shall not emit the tap key for that release.
+
+Rationale: a long hold that is abandoned is not a tap. Source: ESC-NEED-001.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-014 @emph{Own autorepeat}
+The engine shall not treat an autorepeat event of a dual-role key as a press
+of another key.
+
+Rationale: kernel autorepeat of the held key would otherwise cancel every
+tap. Source: ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-015 @emph{Overlapping dual-role keys}
+When a second dual-role key is pressed while a first is held, the engine
+shall mark the first as used.
+
+Rationale: two dual-role keys held together form a chord. Source:
+ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-016 @emph{Remap}
+When a remap source key produces a press, release, or autorepeat event, the
+engine shall emit the event of the same kind for the remap target key.
+
+Rationale: Caps Lock to Control is the usual companion of a dual-role
+Control. Source: ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-017 @emph{Pass-through}
+The engine shall emit every event of a key that is not managed unchanged and
+in input order.
+
+Rationale: Escape Pod must be invisible for the rest of the keyboard.
+Source: ESC-NEED-005. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-018 @emph{Balanced output}
+For every input sequence in which each pressed key is later released, the
+engine shall emit a release for every key press it emitted.
+
+Rationale: an unbalanced press is a stuck key. Source: ESC-NEED-003.
+Method: test (property-based, over generated sequences). Priority: mandatory. Status: draft.
+
+@item ESC-SRS-019 @emph{Default tap timeout}
+When the configuration sets no tap timeout, the engine shall use a tap
+timeout of 200 ms.
+
+Rationale: 200 ms covers a deliberate tap and excludes an abandoned hold.
+Source: ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-020 @emph{Protected keys}
+The engine shall emit every event of a protected key unchanged.
+
+Rationale: assistive-technology modifiers are never captured. Source:
+ESC-NEED-007; Standard §10. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-021 @emph{No unsafe in the engine}
+The @code{escapepod-core} crate shall declare
+@code{#![forbid(unsafe_code)]}.
+
+Rationale: the engine is the trust core and needs no unsafe code. Source:
+Standard §3.1. Method: inspection. Priority: mandatory. Status: draft.
+@end table
+
+@node Command line
+@section Command line
+
+@table @asis
+@item ESC-SRS-022 @emph{Command tree}
+The CLI shall provide the commands @code{daemon run}, @code{daemon status},
+@code{event monitor}, @code{device list}, @code{config check},
+@code{schema}, and @code{describe}.
+
+Rationale: a fixed noun-verb tree keeps the surface predictable. Source:
+ESC-NEED-006; CLI Standard rule 7. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-023 @emph{Global flags}
+The CLI shall accept every global flag of CLI Standard §3 with the name,
+type, and effect that section defines.
+
+Rationale: flags behave the same across Spacecraft Software tools. Source:
+CLI Standard §3. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-024 @emph{JSON envelope}
+When JSON output is selected, every data-returning command shall write
+exactly one JSON document of the CLI Standard §6 envelope shape to
+standard output.
+
+Rationale: agents parse one stable shape. Source: ESC-NEED-006. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-025 @emph{Structured errors}
+When a command fails in machine mode, the CLI shall write to standard error
+one JSON error object whose @code{hint} field holds a command the caller can
+run without elevated privileges, or the literal prefix @samp{human:}
+followed by the action a person must take.
+
+Rationale: a runnable hint ends guess-and-retry loops. Source: ESC-NEED-006;
+agentic CLI §3. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-026 @emph{Agent detection}
+When the process runs in an agent environment, the CLI shall select JSON
+output.
+
+Rationale: harnesses set descriptive values, not @samp{1}. Source:
+ESC-NEED-006; CLI Standard §5. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-090 @emph{Agent colour}
+When the process runs in an agent environment, the CLI shall emit no ANSI
+colour sequence.
+
+Rationale: colour codes are noise in an agent's context. Source: ESC-NEED-006; CLI Standard §5. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-091 @emph{Agent prompts}
+When the process runs in an agent environment, the CLI shall not prompt for
+input.
+
+Rationale: an agent cannot answer a prompt and would hang. Source: ESC-NEED-006; CLI Standard §5. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-027 @emph{Exit codes}
+The CLI shall exit with the codes of CLI Standard §4.
+
+Rationale: exit status is an agent's control flow. Source: CLI Standard
+§4. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-095 @emph{Code 6 reserved}
+The CLI shall not exit with code 6 except after an emergency release.
+
+Rationale: the service unit treats code 6 as do-not-restart. Source: ESC-NEED-003. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-028 @emph{Version attribution}
+The @option{--version} output shall include the line @samp{Maintained by
+Mohamed Hammad <Mohamed.Hammad@@SpacecraftSoftware.org>} and the project URL.
+
+Rationale: attribution travels with the binary. Source: Standard §15.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-029 @emph{Config location}
+The CLI shall read the configuration from the path given by
+@option{--config}, else from @file{$XDG_CONFIG_HOME/escapepod/config.toml}
+for a session run, else from @file{/etc/escapepod/config.toml}.
+
+Rationale: one documented search order. Source: ESC-NEED-006. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-030 @emph{Unknown keys}
+When the configuration contains a key the schema does not define, the CLI
+shall exit with code 2.
+
+Rationale: a typo must not silently disable a mapping. Source: ESC-NEED-003.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-092 @emph{Unknown key location}
+When the configuration contains a key the schema does not define, the CLI
+shall report the line and column of that key.
+
+Rationale: the user finds the typo without searching. Source: ESC-NEED-006. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-031 @emph{Tap timeout range}
+When a tap timeout outside 50 ms to 2000 ms inclusive is given, the CLI
+shall exit with code 2.
+
+Rationale: values outside the range make tapping impossible or
+unpredictable. Source: ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-032 @emph{xcape mapping grammar}
+The CLI shall accept @option{--map} with the xcape grammar
+@samp{KEY=TAP[;KEY=TAP]...} and apply it as dual-role mappings with KEY as
+both the physical key and the hold key.
+
+Rationale: xcape users keep their mapping string. Source: ESC-NEED-008.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-033 @emph{Tap timeout flag}
+The CLI shall accept @option{--tap-timeout} in milliseconds, overriding the
+configuration value.
+
+Rationale: matches xcape's @option{-t}. Source: ESC-NEED-008. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-034 @emph{Device match rules}
+The CLI shall accept per-device rules matching a device by name or by
+vendor and product identifier.
+
+Rationale: an external keyboard may need a different mapping. Source:
+ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-035 @emph{Config check}
+The @code{config check} command shall validate the configuration without
+opening any input device or creating any virtual device.
+
+Rationale: a configuration is tested without risking the keyboard. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-036 @emph{Device list}
+The @code{device list} command shall report each input device's name,
+vendor identifier, product identifier, path, kind, and match status without
+read access to any event device.
+
+Rationale: discovery must not need keylogging rights. Source: ESC-NEED-004.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-037 @emph{Run confirmation}
+When standard output is not a terminal, or the process runs in an agent
+environment, the @code{daemon run} command shall exit with code 2 unless
+@option{--yes} is given.
+
+Rationale: an agent must not grab the keyboard by accident. Source:
+ESC-NEED-003; agentic CLI §7. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-038 @emph{Screen-reader modifier}
+When a session run finds an Orca modifier key named in the configuration,
+the daemon shall treat that key as protected.
+
+Rationale: Orca's laptop layout uses Caps Lock as its modifier. Source:
+ESC-NEED-007; Standard §10. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-093 @emph{Screen-reader warning}
+When a session run finds an Orca modifier key named in the configuration,
+the daemon shall emit a warning diagnostic naming that key.
+
+Rationale: the user learns why the mapping is inactive. Source: ESC-NEED-007. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-039 @emph{Dry run}
+The @code{daemon run --dry-run} command shall report the devices it would
+grab and the mappings it would apply, then exit with code 0.
+
+Rationale: the plan is inspectable before the keyboard is taken. Source:
+ESC-NEED-003; CLI Standard rule 3. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-094 @emph{Dry run grabs nothing}
+The @code{daemon run --dry-run} command shall not grab any input device.
+
+Rationale: a dry run must be free of the lockout risk. Source: ESC-NEED-003; CLI Standard rule 3. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-040 @emph{Accessible output}
+When accessible mode is active, the @code{event monitor} command shall write
+one complete line per event and no cursor-movement escape sequence.
+
+Rationale: screen readers read linear output. Source: Standard §18.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-041 @emph{Schema}
+The @code{schema} command shall write a document that validates as JSON
+Schema Draft 2020-12.
+
+Rationale: the schema drops into LLM tool definitions. Source: CLI Standard
+rule 4. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-042 @emph{Provider schema formats}
+The @code{schema} command should accept @option{--format} values
+@samp{anthropic}, @samp{openai}, @samp{gemini}, and @samp{mcp}.
+
+Rationale: saves an adapter step per provider. Source: agentic CLI §5.
+Method: test. Priority: optional. Status: draft.
+@end table
+
+@node evdev backend
+@section evdev backend
+
+@table @asis
+@item ESC-SRS-043 @emph{Output before grab}
+When the virtual output device cannot be created, the daemon shall exit
+with code 4 before grabbing any input device.
+
+Rationale: a grab with no output is a dead keyboard. Source: ESC-NEED-003.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-044 @emph{Exclusive grab}
+The daemon shall grab every keyboard matched by the configuration
+exclusively.
+
+Rationale: without the grab both the original and the mapped events reach
+applications. Source: ESC-NEED-002. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-045 @emph{Own devices excluded}
+The daemon shall not open for reading any virtual device created by an
+Escape Pod process.
+
+Rationale: reading its own output creates a feedback loop. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-046 @emph{Release on signal}
+When the daemon receives @code{SIGTERM} or @code{SIGINT}, it shall emit a
+release for every key it holds down on the virtual device within 100 ms and
+before exiting.
+
+Rationale: a stuck Control outlives the process otherwise. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-047 @emph{Release on panic}
+When the daemon panics, it shall emit a release for every key it holds down
+on the virtual device before the process ends.
+
+Rationale: a defect must not leave a stuck key. Source: ESC-NEED-003.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-048 @emph{Emergency chord}
+When every key of the emergency chord is held at once, the daemon shall
+release every grab within 100 ms.
+
+Rationale: a way out that works when the mapping itself is broken. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-096 @emph{Emergency exit code}
+After an emergency release, the daemon shall exit with code 6.
+
+Rationale: the supervisor must tell a deliberate escape from a crash. Source: ESC-NEED-003. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-049 @emph{Configurable chord}
+The configuration shall be able to replace the default emergency chord of
+Backspace, Escape, and Enter.
+
+Rationale: key bindings are remappable. Source: Standard §10. Method:
+test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-050 @emph{Device fault isolation}
+When reading from a grabbed device fails, the daemon shall release that
+device's grab.
+
+Rationale: one faulty keyboard must not take the others down. Source:
+ESC-NEED-003; Standard §3.1. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-097 @emph{Device fault warning}
+When reading from a grabbed device fails, the daemon shall emit a warning
+diagnostic naming that device.
+
+Rationale: a silently released keyboard looks like a broken mapping. Source: ESC-NEED-006. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-098 @emph{Other devices continue}
+When reading from a grabbed device fails, the daemon shall continue serving
+every other grabbed device.
+
+Rationale: one faulty keyboard must not take the others down. Source: ESC-NEED-003; Standard §3.1. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-051 @emph{Hotplug}
+When a keyboard matching the configuration is connected, the daemon shall
+grab it within 1 s.
+
+Rationale: docked and Bluetooth keyboards come and go. Source: ESC-NEED-002.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-052 @emph{Removal}
+When a grabbed device is removed, the daemon shall emit a release for every
+virtual-device key held down because of that device.
+
+Rationale: unplugging mid-chord must not leave a stuck modifier. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-053 @emph{Pointers read without grab}
+The daemon shall read pointer button events from pointer devices without
+grabbing them.
+
+Rationale: ESC-SRS-012 needs pointer presses; grabbing would take the
+pointer away. Source: ESC-NEED-001. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-054 @emph{Reload}
+When the daemon receives @code{SIGHUP} and the configuration validates, it
+shall apply the new configuration.
+
+Rationale: changes apply without dropping the keyboard. Source:
+ESC-NEED-006. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-055 @emph{Failed reload}
+When the daemon receives @code{SIGHUP} and the configuration does not
+validate, it shall keep the previous configuration.
+
+Rationale: a typo during reload must not strand the user. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-099 @emph{Failed reload warning}
+When the daemon receives @code{SIGHUP} and the configuration does not
+validate, it shall emit a warning diagnostic naming the first error.
+
+Rationale: the user learns the reload did not apply. Source: ESC-NEED-006. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-056 @emph{Grabs kept across reload}
+During a reload, the daemon shall keep the grab of every device that the new
+configuration still matches.
+
+Rationale: a release-and-regrab window passes raw keys through. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-057 @emph{Idle}
+While no input event, signal, hotplug event, or socket connection arrives,
+the daemon shall not wake.
+
+Rationale: an idle daemon costs no power. Source: ESC-NEED-005. Method:
+analysis. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-058 @emph{Key data destination}
+The daemon shall write key event data only to its virtual device and to the
+status socket.
+
+Rationale: keystrokes never land in logs or files. Source: ESC-NEED-004.
+Method: review of design. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-059 @emph{Socket access}
+The daemon shall create its status socket with mode @samp{0660} and group
+@samp{escapepod-ctl}.
+
+Rationale: event timing alone leaks typing cadence, so access is granted
+explicitly. Source: ESC-NEED-004. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-060 @emph{Socket redaction}
+The daemon shall not write the key code of a key that is not managed to the
+status socket.
+
+Rationale: the socket must not become a keylogger. Source: ESC-NEED-004.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-061 @emph{Monitor default}
+The @code{event monitor} command shall report events of keys that are not
+managed as @samp{other}, without a key code.
+
+Rationale: the default view is safe to paste into a bug report. Source:
+ESC-NEED-004. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-062 @emph{All-keys guard}
+When standard output is not a terminal, or the process runs in an agent
+environment, the @code{event monitor --all-keys} command shall exit with
+code 4.
+
+Rationale: full keystroke output must not reach a pipe or an agent's
+context. Source: ESC-NEED-004; agentic CLI §7. Method: test. Priority: mandatory. Status: draft.
+@end table
+
+@node X11 backend
+@section X11 backend
+
+@table @asis
+@item ESC-SRS-063 @emph{Backend auto-selection}
+When @option{--backend} is absent or @samp{auto}, the daemon shall select
+the evdev backend if it can read a matched keyboard and write
+@file{/dev/uinput}, else the X11 backend if @env{DISPLAY} is set, else exit
+with code 4.
+
+Rationale: the best available backend is used without configuration.
+Source: ESC-NEED-002. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-064 @emph{Backend override}
+The daemon shall use the backend named by @option{--backend evdev} or
+@option{--backend x11}.
+
+Rationale: the choice can be forced for testing. Source: ESC-NEED-006.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-100 @emph{Forced backend unavailable}
+When the backend named by @option{--backend} is unavailable, the daemon
+shall exit with code 4.
+
+Rationale: a forced backend must not silently fall back. Source: ESC-NEED-006. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-065 @emph{X11 tap}
+On the X11 backend, when the conditions of ESC-SRS-010 hold, the daemon
+shall inject one press and one release of the tap key.
+
+Rationale: the X11 fallback keeps the core behaviour. Source:
+ESC-NEED-002. Method: test (under Xvfb). Priority: mandatory. Status: draft.
+
+@item ESC-SRS-066 @emph{X11 rejects remaps}
+On the X11 backend, when the configuration contains a remap, the daemon
+shall exit with code 2.
+
+Rationale: X RECORD cannot suppress a key, so a remap cannot be honoured.
+Source: ESC-NEED-002. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-101 @emph{X11 remap hint}
+On the X11 backend, when the configuration contains a remap, the error's
+hint shall name @command{setxkbmap -option}.
+
+Rationale: points the user at the X11-native way to remap. Source: ESC-NEED-006; agentic CLI §3. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-067 @emph{X11 needs no device access}
+The X11 backend shall run without read access to any event device and
+without write access to @file{/dev/uinput}.
+
+Rationale: the fallback exists for sessions without device access. Source:
+ESC-NEED-002; ESC-NEED-004. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-068 @emph{X11 connection loss}
+When the X server connection is lost, the daemon shall exit with code 1.
+
+Rationale: a dead connection must be visible to the supervisor. Source:
+ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-102 @emph{X11 loss diagnostic}
+When the X server connection is lost, the daemon shall emit an error
+diagnostic naming the display.
+
+Rationale: the log says why the daemon stopped. Source: ESC-NEED-006. Method: test.
+Priority: mandatory. Status: draft.
+
+@item ESC-SRS-088 @emph{X11 injects taps only}
+On the X11 backend, the daemon shall inject tap-key events and no other
+events.
+
+Rationale: the physical hold key already reached the X server, so injecting
+it again would double it. Source: ESC-NEED-001. Method: test (under Xvfb).
+Priority: mandatory. Status: draft.
+@end table
+
+@node Packaging and privileges
+@section Packaging and privileges
+
+@table @asis
+@item ESC-SRS-069 @emph{Service account}
+The service unit shall run the daemon as the @samp{escapepod} system
+account.
+
+Rationale: keylogging rights stay off the login account. Source:
+ESC-NEED-004. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-070 @emph{Scoped udev rules}
+The shipped udev rules shall grant event-device read access and
+@file{/dev/uinput} write access to group @samp{escapepod} and to no other
+group.
+
+Rationale: device access is granted to the daemon alone. Source:
+ESC-NEED-004. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-071 @emph{No input group}
+The packaging shall not add any login account to the @samp{input} group.
+
+Rationale: membership would let every program the user runs read every
+keyboard. Source: ESC-NEED-004. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-072 @emph{Service sandbox}
+The service unit shall restrict the daemon to the @code{AF_UNIX} and
+@code{AF_NETLINK} address families.
+
+Rationale: a keystroke-handling process has no use for a network. Source:
+Standard §3.3. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-073 @emph{No restart after emergency}
+The service unit shall not restart the daemon after exit code 6.
+
+Rationale: a restart would re-grab the keyboard the user just freed.
+Source: ESC-NEED-003. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-074 @emph{NixOS module}
+The project shall ship a NixOS module @code{services.escapepod} that
+installs the service, the udev rules, the account, and the configuration.
+
+Rationale: Steelbore OS Bravais is NixOS. Source: ESC-NEED-002. Method:
+test (NixOS VM test). Priority: mandatory. Status: draft.
+
+@item ESC-SRS-075 @emph{Guix package}
+@file{packaging/guix.scm} shall build the release with
+@command{guix build -f}.
+
+Rationale: distribution requirement. Source: Standard §5.5. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-076 @emph{Nix package}
+@file{packaging/default.nix} shall build the release.
+
+Rationale: distribution requirement. Source: Standard §5.5. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-077 @emph{Arch package}
+@file{packaging/PKGBUILD} shall build the release with
+@command{makepkg}.
+
+Rationale: distribution requirement. Source: Standard §5.5. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-078 @emph{Manual}
+@file{doc/escapepod.texi} shall build to Info, HTML, and PDF with zero
+errors and zero warnings.
+
+Rationale: the manual is the canonical reference. Source: Standard §8.
+Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-089 @emph{Interface control document}
+@file{doc/escapepod.texi} shall carry an @samp{Interfaces} node recording,
+for each interface, its identity, version, contract, error behaviour,
+stability class, committed schema, and known consumers.
+
+Rationale: Category B ships an ICD. Source: Standard §23.2. Method:
+inspection. Priority: mandatory. Status: draft.
+@end table
+
+@node Verification
+@section Verification
+
+@table @asis
+@item ESC-SRS-079 @emph{Latency budget}
+The evdev backend shall add no more than 1 ms at the 99th percentile
+between reading an input event and writing the corresponding output event,
+on the reference machine.
+
+Rationale: added delay above this is felt as lag. Source: ESC-NEED-005;
+Standard §22. Method: test (benchmark). Priority: mandatory. Status: draft.
+
+@item ESC-SRS-080 @emph{Memory budget}
+The daemon shall hold a resident set of no more than 8 MiB on the reference
+machine.
+
+Rationale: a resident daemon stays small. Source: ESC-NEED-005; Standard
+§22. Method: test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-081 @emph{Config parser fuzzing}
+The configuration parser shall return a result without panicking for every
+input of a fuzzing campaign of at least 10@sup{7} executions.
+
+Rationale: every input parser is fuzzed at Category B. Source: Standard
+§21.2. Method: test (fuzzing). Priority: mandatory. Status: draft.
+
+@item ESC-SRS-082 @emph{Mapping grammar fuzzing}
+The @option{--map} parser shall return a result without panicking for every
+input of a fuzzing campaign of at least 10@sup{7} executions.
+
+Rationale: every input parser is fuzzed at Category B. Source: Standard
+§21.2. Method: test (fuzzing). Priority: mandatory. Status: draft.
+
+@item ESC-SRS-083 @emph{Coverage}
+The test suite shall reach at least 80% line coverage of the workspace's own
+code.
+
+Rationale: Category B evidence floor. Source: Standard §21.2. Method:
+test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-084 @emph{Mutation triage}
+Every mutant surviving a @command{cargo mutants} run shall be killed by a
+test or carry a written justification.
+
+Rationale: shows the tests would notice a defect. Source: Standard §21.2.
+Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-085 @emph{Traceability}
+The CI pipeline shall generate the requirement-to-test traceability matrix
+and fail on an unverified requirement or an unknown identifier.
+
+Rationale: a hand-kept matrix goes stale. Source: Standard §21.3. Method:
+test. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-086 @emph{SBOM}
+Each release shall ship an SBOM generated from the locked inputs, with a
+checksum.
+
+Rationale: users can audit what runs on their keystrokes. Source: Standard
+§24.3. Method: inspection. Priority: mandatory. Status: draft.
+
+@item ESC-SRS-087 @emph{Clean install}
+Each of the three package definitions shall install a working daemon in a
+clean environment before the release tag is pushed.
+
+Rationale: validation from installed packaging. Source: Standard §21.5,
+§25.3. Method: test. Priority: mandatory. Status: draft.
+@end table
+
+@bye
