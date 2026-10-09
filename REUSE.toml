@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+version = 1
+
+# Files that cannot carry inline SPDX tags.
+[[annotations]]
+path = ["LICENSE", "Cargo.lock", "flake.lock"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Machine-readable data under software class (Standard §4.1.1): the
+# requirement set and its progress map (G1, P-001/P-007).
+[[annotations]]
+path = ["doc/requirements.toml", "doc/progress-map.toml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"

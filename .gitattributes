@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Steelbore Standard §6.5 — Text File Format (ESC-SRS-008). Every text file is
+# stored LF regardless of a contributor's core.autocrlf. A CRLF exception, if
+# one is ever needed, is pinned here as its own line, never left implicit.
+* text=auto eol=lf

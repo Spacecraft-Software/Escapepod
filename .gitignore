@@ -3,3 +3,9 @@
 
 # Archived chat transcripts written by `engram save-chat`; kept local.
 chat/
+
+# Per-user Claude Code permissions; personal, never shared (§5.7).
+.claude/settings.local.json
+
+# Cargo build output.
+/target/

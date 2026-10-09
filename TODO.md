@@ -30,22 +30,22 @@ when that test passes. Identifiers are permanent.
 - [ ] T-003 P-001 Port Operator `tools/srs.nu`; render `doc/requirements.texi`; replace the
       chapter in `doc/escapepod.texi` with `@include requirements.texi`; manual builds clean
 - [ ] T-004 P-001 Flip every status to `baselined`; push signed tag `g1-requirements-0.1`
-- [ ] T-005 P-002 Copy `LICENSE` (GPL-3.0-or-later) from `/spacecraft-software/license/`;
+- [x] T-005 P-002 Copy `LICENSE` (GPL-3.0-or-later) from `/spacecraft-software/license/`;
       `LICENSES/GPL-3.0-or-later.txt -> ../LICENSE`; add `LICENSES/CC-BY-SA-4.0.txt`
-- [ ] T-006 P-002 `README.md`: description, Project Posture (Personal/Hobby, Category B,
+- [x] T-006 P-002 `README.md`: description, Project Posture (Personal/Hobby, Category B,
       §19.6 claim "tailored, see COMPLIANCE.md"), §13 N/A, support window, build/run
-- [ ] T-007 P-002 `NOTICE.md`, `CONTRIBUTING.md` from `/spacecraft-software/license/`,
+- [x] T-007 P-002 `NOTICE.md`, `CONTRIBUTING.md` from `/spacecraft-software/license/`,
       specialised
-- [ ] T-008 P-002 `SECURITY.md`: private channel, acknowledgement target (days), scope,
+- [x] T-008 P-002 `SECURITY.md`: private channel, acknowledgement target (days), scope,
       supported versions, disclosure terms, credit
-- [ ] T-009 P-002 `CREDITS.md`: xcape (prior art), ISO/IEC/IEEE 29148, ECSS-E-ST-40C
-- [ ] T-010 P-002 `REUSE.toml` for `chat/`-free tree; `reuse lint` exits 0
+- [x] T-009 P-002 `CREDITS.md`: xcape (prior art), ISO/IEC/IEEE 29148, ECSS-E-ST-40C
+- [x] T-010 P-002 `REUSE.toml` for `chat/`-free tree; `reuse lint` exits 0
 - [ ] T-011 P-003 `AGENTS.md` per `agents-md-authoring.md` (identity, build/test/lint,
       invariants, forbidden patterns, environment, where-to-look); Category B declared
 - [ ] T-012 P-003 `CLAUDE.md` = `@AGENTS.md` + skills to load + `.claude/` notes
 - [ ] T-013 P-003 `SKILL.md`: command tree, formats, global flags, exit codes, examples;
       description ≤ 1000 characters
-- [ ] T-014 P-004 `.gitattributes`, `.editorconfig`; `git ls-files --eol` CRLF check in
+- [x] T-014 P-004 `.gitattributes`, `.editorconfig`; `git ls-files --eol` CRLF check in
       `tools/ci.nu`
 - [ ] T-015 P-005 `Cargo.toml` workspace with four crates and `workspace.package`
       (edition 2024, license, repository, homepage, authors, `publish = false`)
