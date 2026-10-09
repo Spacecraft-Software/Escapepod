@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# cargo-audit configuration. The ignore list is kept in lockstep with
+# deny.toml's [advisories].ignore; an advisory ignored here carries the same
+# per-advisory justification there.
+[advisories]
+ignore = []

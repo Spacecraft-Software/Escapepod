@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "escapepod"
+description = "Tap a key for Escape, hold it for Control: the Escape Pod daemon and CLI"
+keywords = ["keyboard", "xcape", "dual-role", "remap"]
+categories = ["command-line-utilities", "os::linux-apis"]
+readme = "../../README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+escapepod-core.workspace = true
+escapepod-evdev.workspace = true
+escapepod-x11.workspace = true

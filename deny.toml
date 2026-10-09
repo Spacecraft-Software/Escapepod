@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# cargo-deny policy (Standard §3.3 dependency auditing; §4.2 licence
+# compatibility with GPL-3.0-or-later; §24.2 audit before adoption, gating CI;
+# ESC-SRS-007). The FULL feature graph is evaluated, not the defaults.
+
+[graph]
+all-features = true
+
+[licenses]
+# Widen only as a dependency actually lands (`cargo deny list`), never ahead.
+# Empty at M0: the workspace has no third-party dependency yet.
+allow = []
+# The workspace crates themselves are unpublished; accept their own licence.
+private = { ignore = true }
+
+[advisories]
+yanked = "deny"
+# Every ignore carries a per-advisory reason, kept in lockstep with
+# .cargo/audit.toml.
+ignore = []
+
+[bans]
+multiple-versions = "warn"
+# Standard §14.5: never time 0.1.x.
+[[bans.deny]]
+name = "time"
+version = "<0.2"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
