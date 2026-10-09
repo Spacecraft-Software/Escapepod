@@ -8,9 +8,12 @@
 # same PR that adds it to the workflow, never later.
 
 # The posture set (Standard §5.2, §5.7, §15.3, §19.5, §26.1; ESC-SRS-002,
-# 005, 006). AGENTS.md, CLAUDE.md and SKILL.md join at P-003.
+# 003, 005, 006).
 const POSTURE = [
     README.md
+    AGENTS.md
+    CLAUDE.md
+    SKILL.md
     NOTICE.md
     CONTRIBUTING.md
     LICENSE
@@ -70,12 +73,38 @@ def crlf-gate []: nothing -> record<gate: string, ok: bool> {
     { gate: crlf ok: ($bad | is-empty) }
 }
 
-# Runs every local gate and exits 1 if any fails.
+# Fails when SKILL.md's frontmatter description exceeds 1000 rendered
+# characters (Standard §5.6; the loader hard-fails at 1024).
+def skill-gate []: nothing -> record<gate: string, ok: bool> {
+    let length = (
+        open SKILL.md --raw
+        | split row "---"
+        | get 1
+        | from yaml
+        | get description
+        | str length
+    )
+    if $length > 1000 {
+        print -e $"error: SKILL.md description is ($length) characters; the cap is 1000"
+    }
+    { gate: skill ok: ($length <= 1000) }
+}
+
+# Runs every local gate and exits 1 if any fails. The cargo gates are
+# ESC-SRS-007's merge-blocking set.
 def main []: nothing -> nothing {
     let results = [
         (posture-gate)
         (crlf-gate)
+        (skill-gate)
         (run-gate reuse { ^reuse lint })
+        (run-gate fmt { ^cargo fmt --all --check })
+        (run-gate clippy {
+            ^cargo clippy --all-targets --all-features --locked -- -D warnings
+        })
+        (run-gate test { ^cargo test --workspace --locked })
+        (run-gate audit { ^cargo audit })
+        (run-gate deny { ^cargo deny check })
     ]
     print ($results | update ok { |r| if $r.ok { "pass" } else { "FAIL" } })
     if ($results | any { |r| not $r.ok }) {

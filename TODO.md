@@ -40,23 +40,23 @@ when that test passes. Identifiers are permanent.
       supported versions, disclosure terms, credit
 - [x] T-009 P-002 `CREDITS.md`: xcape (prior art), ISO/IEC/IEEE 29148, ECSS-E-ST-40C
 - [x] T-010 P-002 `REUSE.toml` for `chat/`-free tree; `reuse lint` exits 0
-- [ ] T-011 P-003 `AGENTS.md` per `agents-md-authoring.md` (identity, build/test/lint,
+- [x] T-011 P-003 `AGENTS.md` per `agents-md-authoring.md` (identity, build/test/lint,
       invariants, forbidden patterns, environment, where-to-look); Category B declared
-- [ ] T-012 P-003 `CLAUDE.md` = `@AGENTS.md` + skills to load + `.claude/` notes
-- [ ] T-013 P-003 `SKILL.md`: command tree, formats, global flags, exit codes, examples;
+- [x] T-012 P-003 `CLAUDE.md` = `@AGENTS.md` + skills to load + `.claude/` notes
+- [x] T-013 P-003 `SKILL.md`: command tree, formats, global flags, exit codes, examples;
       description ≤ 1000 characters
 - [x] T-014 P-004 `.gitattributes`, `.editorconfig`; `git ls-files --eol` CRLF check in
       `tools/ci.nu`
-- [ ] T-015 P-005 `Cargo.toml` workspace with four crates and `workspace.package`
+- [x] T-015 P-005 `Cargo.toml` workspace with four crates and `workspace.package`
       (edition 2024, license, repository, homepage, authors, `publish = false`)
-- [ ] T-016 P-005 Release profile: `lto = "fat"`, `codegen-units = 1`, `panic = "unwind"`
+- [x] T-016 P-005 Release profile: `lto = "fat"`, `codegen-units = 1`, `panic = "unwind"`
       (release-on-panic needs unwinding), `strip = true`; each flag commented, `-march`
       left off and why
-- [ ] T-017 P-005 `clippy.toml`, `rustfmt.toml`, `deny.toml` (licences, advisories, bans,
+- [x] T-017 P-005 `clippy.toml`, `rustfmt.toml`, `deny.toml` (licences, advisories, bans,
       sources), `.cargo/audit.toml`
-- [ ] T-018 P-005 `flake.nix` devShell + `flake.lock`; `COMPLIANCE.md` row for the
+- [x] T-018 P-005 `flake.nix` devShell + `flake.lock`; `COMPLIANCE.md` row for the
       `rust-toolchain.toml` tailoring; `rust-version` = MSRV in `Cargo.toml`
-- [ ] T-019 P-005 Crate stubs with SPDX headers, `escapepod-core` `#![forbid(unsafe_code)]`,
+- [x] T-019 P-005 Crate stubs with SPDX headers, `escapepod-core` `#![forbid(unsafe_code)]`,
       `cargo build` and `cargo clippy -- -D warnings` clean
 - [ ] T-020 P-006 `.github/workflows/ci.yml` (jobs: rust, posture, docs, trace)
 - [ ] T-021 P-006 `tools/ci.nu` mirroring every CI gate; documented in `AGENTS.md`
