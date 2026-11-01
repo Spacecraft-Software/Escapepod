@@ -118,6 +118,9 @@ TOML, UTF-8, read from @option{--config}, else
 (exit 2, with the line and column).
 
 @table @code
+@item grab
+@samp{all} (default): every keyboard is grabbed unless a rule ignores it;
+@samp{listed}: only keyboards a @code{[[device]]} rule names.
 @item tap_timeout_ms
 Integer, 50 to 2000; default 200.
 @item emergency_chord
@@ -171,4 +174,12 @@ The configuration search and the Orca settings file.
 @itemx ESCAPEPOD_DEV_DIR
 Replace @file{/sys/class/input} and @file{/dev/input}, for tests and
 containers.
+@item ESCAPEPOD_UINPUT
+A node probed for read and write access before the virtual keyboard is
+created on @file{/dev/uinput}; tests point it at a missing file to force
+exit 4.
+@item ESCAPEPOD_SOCKET
+The status socket path, for the daemon and for @code{daemon status}.
+@item XDG_RUNTIME_DIR
+The session daemon's socket directory.
 @end table

@@ -104,7 +104,7 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 - [x] P-018 Run guards: `--yes` off a terminal or under an agent; `--dry-run` plan that grabs
       nothing; Orca modifier discovery (gsettings/dconf `org.gnome.orca` keyboard layout →
       modifier keys) → protected + warning — ESC-SRS-037, 038, 039, 093, 094
-- [ ] P-019 Human-mode rendering: `steelbore` theme binding §11.1 role tokens from
+- [x] P-019 Human-mode rendering: `steelbore` theme binding §11.1 role tokens from
       `steelbore.toml` (no bare hex), `NO_COLOR` → mono, `SPACECRAFT_A11Y`/`--accessible`
       linear `event monitor` — ESC-SRS-040
 - [x] P-020 `schema` (JSON Schema 2020-12 via `schemars`, validated in test) and `describe`
@@ -116,28 +116,28 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 
 ## M3 — evdev backend and safety
 
-- [ ] P-022 Device-I/O seam in `escapepod-evdev`: traits `InputSource`, `OutputSink`,
+- [x] P-022 Device-I/O seam in `escapepod-evdev`: traits `InputSource`, `OutputSink`,
       `HotplugSource`, `Clock`; fake implementations for tests; real ones over `evdev` +
       `udev` + uinput — design item (G2 `Design` node)
-- [ ] P-023 Output-before-grab: create the uinput device first (exit 4 on failure), then
+- [x] P-023 Output-before-grab: create the uinput device first (exit 4 on failure), then
       exclusive grab of matched keyboards; never open an Escape Pod virtual device —
       ESC-SRS-043, 044, 045
-- [ ] P-024 Single-thread event loop: one `poll(2)` over device fds, udev monitor, signal fd,
+- [x] P-024 Single-thread event loop: one `poll(2)` over device fds, udev monitor, signal fd,
       status socket; blocking with no timeout while idle (analysis record `doc/idle.md`);
       pointers read without grab — ESC-SRS-053, 057
-- [ ] P-025 Release discipline: `HeldKeys` ledger; release on SIGTERM/SIGINT within 100 ms,
+- [x] P-025 Release discipline: `HeldKeys` ledger; release on SIGTERM/SIGINT within 100 ms,
       on panic (hook + drop guard), on device removal; emergency chord releases every grab
       and exits 6 — ESC-SRS-046, 047, 048, 052, 096
-- [ ] P-026 Fault isolation and hotplug: read error → release that device, warn, keep
+- [x] P-026 Fault isolation and hotplug: read error → release that device, warn, keep
       serving others; udev add → grab within 1 s — ESC-SRS-050, 051, 097, 098
-- [ ] P-027 Reload: SIGHUP → validate → apply, keep grabs on still-matched devices, failed
+- [x] P-027 Reload: SIGHUP → validate → apply, keep grabs on still-matched devices, failed
       reload keeps previous config and warns — ESC-SRS-054, 055, 056, 099
-- [ ] P-028 Status socket `/run/escapepod/escapepod.sock` (0660, group `escapepod-ctl`),
+- [x] P-028 Status socket `/run/escapepod/escapepod.sock` (0660, group `escapepod-ctl`),
       JSON Lines, redacted; `daemon status` client; key-data destination record
       `doc/privacy-review.md` — ESC-SRS-058, 059, 060
-- [ ] P-029 `event monitor`: default redaction to `other`, `--all-keys` refused off a
+- [x] P-029 `event monitor`: default redaction to `other`, `--all-keys` refused off a
       terminal or under an agent, reads devices directly — ESC-SRS-061, 062
-- [ ] P-030 Hardware tests (feature `hardware-tests`): uinput-loopback keyboard drives the
+- [x] P-030 Hardware tests (feature `hardware-tests`): uinput-loopback keyboard drives the
       real backend end to end; CI job with `/dev/uinput` access, also runnable locally —
       verification for ESC-SRS-043–056
 

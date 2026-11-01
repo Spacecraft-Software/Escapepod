@@ -276,7 +276,7 @@ Rationale: The plan is inspectable before the keyboard is taken.  Source: ESC-NE
 @anchor{ESC-SRS-040}
 When accessible mode is active, the @code{event monitor} command shall write one complete line per event and no cursor-movement escape sequence.
 
-Rationale: Screen readers read linear output.  Source: Standard §18.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Screen readers read linear output.  Source: Standard §18.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-041 @emph{Schema}
 @anchor{ESC-SRS-041}
@@ -336,37 +336,37 @@ Rationale: The service unit treats code 6 as do-not-restart.  Source: ESC-NEED-0
 @anchor{ESC-SRS-043}
 When the virtual output device cannot be created, the daemon shall exit with code 4 before grabbing any input device.
 
-Rationale: A grab with no output is a dead keyboard.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A grab with no output is a dead keyboard.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-044 @emph{Exclusive grab}
 @anchor{ESC-SRS-044}
 The daemon shall grab every keyboard matched by the configuration exclusively.
 
-Rationale: Without the grab both the original and the mapped events reach applications.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Without the grab both the original and the mapped events reach applications.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-045 @emph{Own devices excluded}
 @anchor{ESC-SRS-045}
 The daemon shall not open for reading any virtual device created by an Escape Pod process.
 
-Rationale: Reading its own output creates a feedback loop.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Reading its own output creates a feedback loop.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-046 @emph{Release on signal}
 @anchor{ESC-SRS-046}
 When the daemon receives @code{SIGTERM} or @code{SIGINT}, it shall emit a release for every key it holds down on the virtual device within 100 ms and before exiting.
 
-Rationale: A stuck Control outlives the process otherwise.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A stuck Control outlives the process otherwise.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-047 @emph{Release on panic}
 @anchor{ESC-SRS-047}
 When the daemon panics, it shall emit a release for every key it holds down on the virtual device before the process ends.
 
-Rationale: A defect must not leave a stuck key.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A defect must not leave a stuck key.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-048 @emph{Emergency chord}
 @anchor{ESC-SRS-048}
 When every key of the emergency chord is held at once, the daemon shall release every grab within 100 ms.
 
-Rationale: A way out that works when the mapping itself is broken.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A way out that works when the mapping itself is broken.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-049 @emph{Configurable chord}
 @anchor{ESC-SRS-049}
@@ -378,103 +378,103 @@ Rationale: Key bindings are remappable.  Source: Standard §10.  Method: test.  
 @anchor{ESC-SRS-050}
 When reading from a grabbed device fails, the daemon shall release that device's grab.
 
-Rationale: One faulty keyboard must not take the others down.  Source: ESC-NEED-003; Standard §3.1.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: One faulty keyboard must not take the others down.  Source: ESC-NEED-003; Standard §3.1.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-051 @emph{Hotplug}
 @anchor{ESC-SRS-051}
 When a keyboard matching the configuration is connected, the daemon shall grab it within 1 s.
 
-Rationale: Docked and Bluetooth keyboards come and go.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Docked and Bluetooth keyboards come and go.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-052 @emph{Removal}
 @anchor{ESC-SRS-052}
 When a grabbed device is removed, the daemon shall emit a release for every virtual-device key held down because of that device.
 
-Rationale: Unplugging mid-chord must not leave a stuck modifier.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Unplugging mid-chord must not leave a stuck modifier.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-053 @emph{Pointers read without grab}
 @anchor{ESC-SRS-053}
 The daemon shall read pointer button events from pointer devices without grabbing them.
 
-Rationale: ESC-SRS-012 needs pointer presses; grabbing would take the pointer away.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: ESC-SRS-012 needs pointer presses; grabbing would take the pointer away.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-054 @emph{Reload}
 @anchor{ESC-SRS-054}
 When the daemon receives @code{SIGHUP} and the configuration validates, it shall apply the new configuration.
 
-Rationale: Changes apply without dropping the keyboard.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Changes apply without dropping the keyboard.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-055 @emph{Failed reload}
 @anchor{ESC-SRS-055}
 When the daemon receives @code{SIGHUP} and the configuration does not validate, it shall keep the previous configuration.
 
-Rationale: A typo during reload must not strand the user.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A typo during reload must not strand the user.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-056 @emph{Grabs kept across reload}
 @anchor{ESC-SRS-056}
 During a reload, the daemon shall keep the grab of every device that the new configuration still matches.
 
-Rationale: A release-and-regrab window passes raw keys through.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A release-and-regrab window passes raw keys through.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-057 @emph{Idle}
 @anchor{ESC-SRS-057}
 While no input event, signal, hotplug event, or socket connection arrives, the daemon shall not wake.
 
-Rationale: An idle daemon costs no power.  Source: ESC-NEED-005.  Method: analysis.  Priority: mandatory.  Status: baselined.
+Rationale: An idle daemon costs no power.  Source: ESC-NEED-005.  Method: analysis.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-058 @emph{Key data destination}
 @anchor{ESC-SRS-058}
 The daemon shall write key event data only to its virtual device and to the status socket.
 
-Rationale: Keystrokes never land in logs or files.  Source: ESC-NEED-004.  Method: review-of-design.  Priority: mandatory.  Status: baselined.
+Rationale: Keystrokes never land in logs or files.  Source: ESC-NEED-004.  Method: review-of-design.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-059 @emph{Socket access}
 @anchor{ESC-SRS-059}
 The daemon shall create its status socket with mode @code{0660} and group @code{escapepod-ctl}.
 
-Rationale: Event timing alone leaks typing cadence, so access is granted explicitly.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Event timing alone leaks typing cadence, so access is granted explicitly.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-060 @emph{Socket redaction}
 @anchor{ESC-SRS-060}
 The daemon shall not write the key code of a key that is not managed to the status socket.
 
-Rationale: The socket must not become a keylogger.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The socket must not become a keylogger.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-061 @emph{Monitor default}
 @anchor{ESC-SRS-061}
 The @code{event monitor} command shall report events of keys that are not managed as @code{other}, without a key code.
 
-Rationale: The default view is safe to paste into a bug report.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The default view is safe to paste into a bug report.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-062 @emph{All-keys guard}
 @anchor{ESC-SRS-062}
 When standard output is not a terminal, or the process runs in an agent environment, the @code{event monitor --all-keys} command shall exit with code 4.
 
-Rationale: Full keystroke output must not reach a pipe or an agent's context.  Source: ESC-NEED-004; agentic CLI §7.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Full keystroke output must not reach a pipe or an agent's context.  Source: ESC-NEED-004; agentic CLI §7.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-096 @emph{Emergency exit code}
 @anchor{ESC-SRS-096}
 After an emergency release, the daemon shall exit with code 6.
 
-Rationale: The supervisor must tell a deliberate escape from a crash.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The supervisor must tell a deliberate escape from a crash.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-097 @emph{Device fault warning}
 @anchor{ESC-SRS-097}
 When reading from a grabbed device fails, the daemon shall emit a warning diagnostic naming that device.
 
-Rationale: A silently released keyboard looks like a broken mapping.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A silently released keyboard looks like a broken mapping.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-098 @emph{Other devices continue}
 @anchor{ESC-SRS-098}
 When reading from a grabbed device fails, the daemon shall continue serving every other grabbed device.
 
-Rationale: One faulty keyboard must not take the others down.  Source: ESC-NEED-003; Standard §3.1.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: One faulty keyboard must not take the others down.  Source: ESC-NEED-003; Standard §3.1.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-099 @emph{Failed reload warning}
 @anchor{ESC-SRS-099}
 When the daemon receives @code{SIGHUP} and the configuration does not validate, it shall emit a warning diagnostic naming the first error.
 
-Rationale: The user learns the reload did not apply.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The user learns the reload did not apply.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @end table
 

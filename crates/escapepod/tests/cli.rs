@@ -98,7 +98,9 @@ fn cmd(root: &Path) -> Command {
         .env("XDG_CONFIG_HOME", root.join("config"))
         .env("XDG_DATA_HOME", root.join("data"))
         .env("ESCAPEPOD_SYSFS", sys)
-        .env("ESCAPEPOD_DEV_DIR", dev);
+        .env("ESCAPEPOD_DEV_DIR", dev)
+        // No test creates a real virtual keyboard: the uinput probe fails.
+        .env("ESCAPEPOD_UINPUT", root.join("no-uinput"));
     c
 }
 
@@ -678,8 +680,8 @@ fn control_characters_are_rejected() {
 
 // Verifies: ESC-SRS-095
 /// Exit code 6 is produced only by the emergency path: outside the exit
-/// table, `Exit::Emergency` may appear in the daemon's emergency handling
-/// alone.
+/// table, `Exit::Emergency` appears only where the loop handles the
+/// daemon's `Flow::Emergency`.
 #[test]
 fn exit_6_has_one_producer() {
     let mut users = Vec::new();
@@ -691,7 +693,7 @@ fn exit_6_has_one_producer() {
         }
     }
     assert!(
-        users.iter().all(|f| f == "daemon.rs"),
+        users.iter().all(|f| f == "service.rs"),
         "Exit::Emergency used in {users:?}"
     );
 }
@@ -736,4 +738,56 @@ fn json_round_trips_through_nushell() {
     drop(child.stdin.take());
     let out = child.wait_with_output().unwrap();
     assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "2");
+}
+
+// Verifies: ESC-SRS-043
+/// Without a virtual keyboard the daemon exits 4 and has grabbed nothing:
+/// the uinput probe fails before any device is opened (the fake device
+/// nodes are unreadable, so an open would also have failed loudly).
+#[test]
+fn no_virtual_keyboard_means_exit_4_before_any_grab() {
+    let root = scratch("uinput");
+    let o = cmd(&root)
+        .args(["daemon", "run", "--map", "Caps_Lock=Escape", "--yes"])
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(4));
+    let e = &error_of(&o)["error"];
+    assert_eq!(e["code"], "BACKEND_UNAVAILABLE");
+    assert!(
+        e["message"]
+            .as_str()
+            .unwrap()
+            .contains("no device was grabbed")
+    );
+    let lines = String::from_utf8_lossy(&o.stderr);
+    assert!(
+        !lines.contains("DEVICE_GRABBED") && !lines.contains("DEVICE_OPEN_FAILED"),
+        "{lines}"
+    );
+}
+
+// Verifies: ESC-SRS-062
+#[test]
+fn all_keys_is_refused_off_a_terminal_and_under_agents() {
+    let root = scratch("allkeys");
+    for agent in [None, Some(agent_value())] {
+        let mut c = cmd(&root);
+        if let Some(v) = &agent {
+            c.env("AI_AGENT", v);
+        }
+        let o = c
+            .args([
+                "event",
+                "monitor",
+                "--all-keys",
+                "--map",
+                "Caps_Lock=Escape",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(o.status.code(), Some(4), "{agent:?}");
+        assert_eq!(error_of(&o)["error"]["code"], "PERMISSION_DENIED");
+        assert!(o.stdout.is_empty());
+    }
 }

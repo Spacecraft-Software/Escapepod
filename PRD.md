@@ -198,7 +198,7 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [x] ESC-SRS-037 `daemon run` needs `--yes` off a terminal
 - [x] ESC-SRS-038 Orca modifier key protected
 - [x] ESC-SRS-039 `daemon run --dry-run` reports the plan
-- [ ] ESC-SRS-040 Accessible mode output is linear
+- [x] ESC-SRS-040 Accessible mode output is linear
 - [x] ESC-SRS-041 `schema` is valid JSON Schema 2020-12
 - [ ] ESC-SRS-042 Provider-wrapped schema formats (optional)
 - [x] ESC-SRS-090 No colour under agents
@@ -211,30 +211,30 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M3 — evdev backend and safety
 
-- [ ] ESC-SRS-043 Virtual device before any grab
-- [ ] ESC-SRS-044 Matched keyboards grabbed exclusively
-- [ ] ESC-SRS-045 Own virtual devices never grabbed
-- [ ] ESC-SRS-046 Held keys released on SIGTERM / SIGINT
-- [ ] ESC-SRS-047 Held keys released on panic
-- [ ] ESC-SRS-048 Emergency chord releases grabs
+- [x] ESC-SRS-043 Virtual device before any grab
+- [x] ESC-SRS-044 Matched keyboards grabbed exclusively
+- [x] ESC-SRS-045 Own virtual devices never grabbed
+- [x] ESC-SRS-046 Held keys released on SIGTERM / SIGINT
+- [x] ESC-SRS-047 Held keys released on panic
+- [x] ESC-SRS-048 Emergency chord releases grabs
 - [x] ESC-SRS-049 Emergency chord is configurable
-- [ ] ESC-SRS-050 Device read error releases that device
-- [ ] ESC-SRS-051 Hotplugged keyboard grabbed within 1 s
-- [ ] ESC-SRS-052 Removed device's held keys released
-- [ ] ESC-SRS-053 Pointers read without grab
-- [ ] ESC-SRS-054 `SIGHUP` applies a valid config
-- [ ] ESC-SRS-055 Invalid reload keeps previous config
-- [ ] ESC-SRS-056 Reload keeps grabs on matched devices
-- [ ] ESC-SRS-057 No wake-ups while idle
-- [ ] ESC-SRS-058 Key events written only to the virtual device
-- [ ] ESC-SRS-059 Status socket mode and group
-- [ ] ESC-SRS-060 Socket never carries unmanaged key codes
-- [ ] ESC-SRS-061 `event monitor` default redaction
-- [ ] ESC-SRS-062 `--all-keys` refused off a terminal or under agents
-- [ ] ESC-SRS-096 Emergency release exits with code 6
-- [ ] ESC-SRS-097 Device fault warning
-- [ ] ESC-SRS-098 Other devices keep working after a fault
-- [ ] ESC-SRS-099 Failed reload warning
+- [x] ESC-SRS-050 Device read error releases that device
+- [x] ESC-SRS-051 Hotplugged keyboard grabbed within 1 s
+- [x] ESC-SRS-052 Removed device's held keys released
+- [x] ESC-SRS-053 Pointers read without grab
+- [x] ESC-SRS-054 `SIGHUP` applies a valid config
+- [x] ESC-SRS-055 Invalid reload keeps previous config
+- [x] ESC-SRS-056 Reload keeps grabs on matched devices
+- [x] ESC-SRS-057 No wake-ups while idle
+- [x] ESC-SRS-058 Key events written only to the virtual device
+- [x] ESC-SRS-059 Status socket mode and group
+- [x] ESC-SRS-060 Socket never carries unmanaged key codes
+- [x] ESC-SRS-061 `event monitor` default redaction
+- [x] ESC-SRS-062 `--all-keys` refused off a terminal or under agents
+- [x] ESC-SRS-096 Emergency release exits with code 6
+- [x] ESC-SRS-097 Device fault warning
+- [x] ESC-SRS-098 Other devices keep working after a fault
+- [x] ESC-SRS-099 Failed reload warning
 
 
 ## M4 — X11 fallback backend

@@ -126,7 +126,7 @@ when that test passes. Identifiers are permanent.
       (`ESC-SRS-038, 093`); discovery path recorded in `Design`
 - [x] T-057 P-019 `theme.rs` binding §11.1 tokens read from `steelbore.toml`; `NO_COLOR`
       → no colour, `steelbore-mono` by slug; `SPACECRAFT_THEME` honoured
-- [ ] T-058 P-019 Accessible mode toggle and linear `event monitor` (`ESC-SRS-040`)
+- [x] T-058 P-019 Accessible mode toggle and linear `event monitor` (`ESC-SRS-040`)
 - [x] T-059 P-020 `schema` built from one command table; test validates against the 2020-12
       meta-schema
       (`ESC-SRS-041`)
@@ -138,33 +138,34 @@ when that test passes. Identifiers are permanent.
 
 ## M3 — evdev backend and safety
 
-- [ ] T-062 P-022 Traits `InputSource`, `OutputSink`, `HotplugSource`, `Clock`; fakes in
-      `escapepod-evdev/src/fake.rs`
-- [ ] T-063 P-022 Real `evdev`/uinput/`udev` implementations; choose poll primitive
-      (`nix::poll` if `evdev` already links `nix`, else `rustix`)
-- [ ] T-064 P-023 uinput device created first; exit 4 if it fails (`ESC-SRS-043`)
-- [ ] T-065 P-023 Exclusive grab of matched keyboards; own-device exclusion by uinput
+- [x] T-062 P-022 Traits `Keyboard`, `Pointer`, `Sink`, `Opener` (time passed in, hotplug
+      in the loop); fakes in `escapepod-evdev/src/fake.rs`
+- [x] T-063 P-022 Real `evdev`/uinput implementations, sysfs + inotify hotplug (G2); poll
+      primitive `nix::poll`, since `evdev` already links `nix`
+- [x] T-064 P-023 uinput device created first; exit 4 if it fails (`ESC-SRS-043`)
+- [x] T-065 P-023 Exclusive grab of matched keyboards; own-device exclusion by uinput
       vendor/product/name tag (`ESC-SRS-044, 045`)
-- [ ] T-066 P-024 `poll(2)` loop over devices, udev monitor, signal fd, socket; no timeout
-      when idle; `doc/idle.md` analysis (`ESC-SRS-057`)
-- [ ] T-067 P-024 Pointer devices opened read-only without grab (`ESC-SRS-053`)
-- [ ] T-068 P-025 `HeldKeys` ledger and `release_all()`; SIGTERM/SIGINT path ≤ 100 ms
+- [x] T-066 P-024 `poll(2)` loop over devices, inotify, signal fd, socket; no timeout
+      when idle; `doc/records/idle-analysis.md` (`ESC-SRS-057`)
+- [x] T-067 P-024 Pointer devices opened read-only without grab (`ESC-SRS-053`)
+- [x] T-068 P-025 `HeldKeys` ledger and `release_all()`; SIGTERM/SIGINT path ≤ 100 ms
       (`ESC-SRS-046`)
-- [ ] T-069 P-025 Panic hook + drop guard releasing held keys (`ESC-SRS-047`)
-- [ ] T-070 P-025 Emergency chord → release every grab ≤ 100 ms, exit 6
+- [x] T-069 P-025 Drop guard on the daemon releasing held keys during a panic's unwind
+      (`ESC-SRS-047`)
+- [x] T-070 P-025 Emergency chord → release every grab ≤ 100 ms, exit 6
       (`ESC-SRS-048, 096`)
-- [ ] T-071 P-025 Removal releases that device's held keys (`ESC-SRS-052`)
-- [ ] T-072 P-026 Read error → release device, warn, continue (`ESC-SRS-050, 097, 098`)
-- [ ] T-073 P-026 Hotplug grab within 1 s (`ESC-SRS-051`)
-- [ ] T-074 P-027 SIGHUP reload: validate, apply, keep grabs, warn on failure
+- [x] T-071 P-025 Removal releases that device's held keys (`ESC-SRS-052`)
+- [x] T-072 P-026 Read error → release device, warn, continue (`ESC-SRS-050, 097, 098`)
+- [x] T-073 P-026 Hotplug grab within 1 s (`ESC-SRS-051`)
+- [x] T-074 P-027 SIGHUP reload: validate, apply, keep grabs, warn on failure
       (`ESC-SRS-054, 055, 056, 099`)
-- [ ] T-075 P-028 Status socket creation (0660, `escapepod-ctl`), JSON Lines frames,
+- [x] T-075 P-028 Status socket creation (0660, `escapepod-ctl`), JSON Lines frames,
       redaction (`ESC-SRS-059, 060`)
-- [ ] T-076 P-028 `daemon status` client; `doc/privacy-review.md` for `ESC-SRS-058`
-- [ ] T-077 P-029 `event monitor` default redaction; `--all-keys` guard (`ESC-SRS-061, 062`)
-- [ ] T-078 P-030 `hardware-tests` feature: uinput-loopback keyboard fixture
-- [ ] T-079 P-030 CI job with `/dev/uinput` access running the hardware tests; same job in
-      `tools/ci.nu --hardware`
+- [x] T-076 P-028 `daemon status` client; `doc/records/privacy-review.md` for `ESC-SRS-058`
+- [x] T-077 P-029 `event monitor` default redaction; `--all-keys` guard (`ESC-SRS-061, 062`)
+- [x] T-078 P-030 `hardware-tests` feature: uinput-loopback keyboard fixture
+- [x] T-079 P-030 CI job with `/dev/uinput` access running the hardware tests; same job in
+      `nu tools/ci.nu --only hardware`
 
 ## M4 — X11 fallback backend
 

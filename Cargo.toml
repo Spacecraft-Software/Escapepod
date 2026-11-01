@@ -46,6 +46,7 @@ toml = { version = "1.1.8", default-features = false, features = ["parse", "serd
 x11rb = { version = "0.14.0", default-features = false, features = ["record", "xtest"] }
 # Test-only dependencies (not in the trust path, §24.1).
 assert_cmd = "2.2.2"
+# For the uinput loopback tests only (dev-dependency of escapepod).
 proptest = { version = "1.12.0", default-features = false, features = ["std"] }
 jsonschema = { version = "0.60.2", default-features = false }
 

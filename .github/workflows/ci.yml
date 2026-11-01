@@ -85,6 +85,27 @@ jobs:
       - name: PDF
         run: make -C doc pdf
 
+  hardware:
+    name: uinput loopback (hardware tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ env.NU_VERSION }}
+      - name: uinput and input devices for the runner user (CI VM only)
+        run: |
+          sudo modprobe uinput
+          echo 'KERNEL=="uinput", MODE="0666"' | sudo tee /etc/udev/rules.d/99-escapepod-ci.rules
+          echo 'SUBSYSTEM=="input", KERNEL=="event*", MODE="0666"' | sudo tee -a /etc/udev/rules.d/99-escapepod-ci.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger
+          sudo chmod 0666 /dev/uinput
+      - run: nu tools/ci.nu --only hardware
+
   msrv:
     name: MSRV check and test
     runs-on: ubuntu-latest

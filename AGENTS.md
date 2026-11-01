@@ -38,6 +38,10 @@ Enter the pinned toolchain first: `nix develop`. The flake pins rustc through
 - Format check: `cargo fmt --all --check`
 - Supply chain: `cargo audit` and `cargo deny check`
 - Licensing: `reuse lint`
+- Hardware tests (uinput loopback; creates virtual keyboards, so opt-in):
+  `nu tools/ci.nu --only hardware`. They grab only their own fixture and send
+  no key until both grabs are held, so they are safe on a live desktop; another
+  remapper (xremap) can win a grab race, which they retry.
 
 ## Layout
 
@@ -104,7 +108,8 @@ Inspections are recorded under `doc/records/`.
 
 - Linux only. The evdev backend needs `/dev/uinput` and readable
   `/dev/input/event*`. Hardware tests are behind the `hardware-tests` feature
-  and are never part of the default `cargo test`.
+  and are never part of the default `cargo test`. Tests that start the daemon
+  set `ESCAPEPOD_UINPUT` to a missing file so it never creates a real device.
 - X11 tests run under `xvfb-run` from the devShell.
 - Never `sudo`. Never use a system package manager. Missing tools come from
   `nix develop` or `nix run`.

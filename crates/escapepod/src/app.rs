@@ -198,11 +198,11 @@ fn dispatch(cli: &Cli, mode: &Mode, io: &mut Io<'_>) -> Result<Exit, AppError> {
             daemon_run(cli, args, mode, io)
         }
         Command::Daemon(DaemonCmd::Status { socket }) => {
-            crate::daemon::status(socket.as_deref(), mode, io)
+            crate::service::status(socket.as_deref(), mode, io)
         }
         Command::Event(EventCmd::Monitor { all_keys, mapping }) => {
             let cfg = load_config(cli, mapping, io.env)?;
-            crate::daemon::monitor(&cfg, *all_keys, mode, io)
+            crate::service::monitor(&cfg, *all_keys, mode, io)
         }
         Command::Device(DeviceCmd::List) => device_list(cli, mode, io),
         Command::Config(ConfigCmd::Check { mapping }) => config_check(cli, mapping, mode, io),
@@ -457,7 +457,9 @@ fn daemon_run(cli: &Cli, args: &RunArgs, mode: &Mode, io: &mut Io<'_>) -> Result
     if g.dry_run {
         return dry_run(&cfg, args.backend, mode, io);
     }
-    crate::daemon::run(&cfg, args.backend, mode, io)
+    let env = io.env.clone();
+    let reload = move || load_config(cli, &args.mapping, &env);
+    crate::service::run(cfg, args.backend, mode, io, &reload)
 }
 
 /// `daemon run --dry-run`: the devices it would grab and the mappings it
