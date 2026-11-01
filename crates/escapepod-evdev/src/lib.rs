@@ -3,12 +3,13 @@
 
 //! The evdev backend of Escape Pod.
 //!
-//! This crate reads keyboards through the kernel evdev interface, takes an
-//! exclusive grab on the ones that match, and writes the engine's output to a
-//! uinput virtual keyboard. It also watches udev for keyboards that come and go.
-//! Device access sits behind traits so the grab, release and hotplug logic can
-//! be tested with fakes (PLAN P-022).
-//!
-//! The backend lands in M3; this is the M0 workspace skeleton.
+//! This crate is the only part of Escape Pod that touches `/dev/input` and
+//! `/dev/uinput`. [`scan`] lists devices from sysfs without opening any of
+//! them; the grab, the virtual keyboard and hotplug build on it.
+
+mod discover;
+
+#[doc(inline)]
+pub use discover::{DeviceInfo, DeviceKind, OWN_NAME_PREFIX, OWN_PRODUCT, OWN_VENDOR, scan};
 
 // Rust guideline compliant 2026-05-18

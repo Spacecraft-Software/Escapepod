@@ -82,35 +82,35 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 - [x] P-011 Remap, pass-through in order, protected keys — ESC-SRS-016, 017, 020
 - [x] P-012 Property tests (`proptest`): balanced output, input order, plus a differential
       oracle (tiny reference model) for §21.4 independence — ESC-SRS-018
-- [ ] P-013 Emergency chord detection in core (`Output::Emergency` once every chord key is
+- [x] P-013 Emergency chord detection in core (`Output::Emergency` once every chord key is
       down) and chord configurability — ESC-SRS-049 (core half of 048)
 - [x] P-014 `criterion` bench of `step()` (ns per event) as the engine's share of the
       latency budget — supports ESC-SRS-079
 
 ## M2 — CLI, config and agent surface
 
-- [ ] P-015 CLI skeleton (pattern: Operator `mode.rs`, `agent_env.rs`, `envelope.rs`,
+- [x] P-015 CLI skeleton (pattern: Operator `mode.rs`, `agent_env.rs`, `envelope.rs`,
       `error.rs`): clap tree `daemon run|status`, `event monitor`, `device list`,
       `config check`, `schema`, `describe`, alias `run`; every §3 global flag; §5 output
       cascade (presence-based agent detection); `Response<T>` envelope; `AppError` with
       runnable `hint`/`human:` prefix; exit-code enum with 6 reserved; `--version`
       attribution — ESC-SRS-022, 023, 024, 025, 026, 027, 028, 090, 091, 095
-- [ ] P-016 Config: TOML model (`deny_unknown_fields`, span → line/column), search order,
+- [x] P-016 Config: TOML model (`deny_unknown_fields`, span → line/column), search order,
       tap-timeout range 50–2000 ms, per-device rules (name | vendor:product), `--map` xcape
       grammar, `--tap-timeout`; `config check` opens nothing — ESC-SRS-029, 030, 031, 032,
       033, 034, 035, 092
-- [ ] P-017 `device list` over udev metadata only (no event-device read) with match status —
+- [x] P-017 `device list` over udev metadata only (no event-device read) with match status —
       ESC-SRS-036
-- [ ] P-018 Run guards: `--yes` off a terminal or under an agent; `--dry-run` plan that grabs
+- [x] P-018 Run guards: `--yes` off a terminal or under an agent; `--dry-run` plan that grabs
       nothing; Orca modifier discovery (gsettings/dconf `org.gnome.orca` keyboard layout →
       modifier keys) → protected + warning — ESC-SRS-037, 038, 039, 093, 094
 - [ ] P-019 Human-mode rendering: `steelbore` theme binding §11.1 role tokens from
       `steelbore.toml` (no bare hex), `NO_COLOR` → mono, `SPACECRAFT_A11Y`/`--accessible`
       linear `event monitor` — ESC-SRS-040
-- [ ] P-020 `schema` (JSON Schema 2020-12 via `schemars`, validated in test) and `describe`
+- [x] P-020 `schema` (JSON Schema 2020-12 via `schemars`, validated in test) and `describe`
       manifest — ESC-SRS-041
 - [ ] P-044 `schema --format` provider wrappers — ESC-SRS-042 (optional)
-- [ ] P-021 CLI compliance suite (`assert_cmd`, `predicates`, `insta`): the ten
+- [x] P-021 CLI compliance suite (`assert_cmd`, `predicates`, `insta`): the ten
       `testing-compliance.md` categories, run under the host's real `AI_AGENT` value —
       supports every M2 requirement
 

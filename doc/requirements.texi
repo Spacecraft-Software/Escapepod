@@ -168,109 +168,109 @@ Rationale: The engine is the trust core and needs no unsafe code.  Source: Stand
 @anchor{ESC-SRS-022}
 The CLI shall provide the commands @code{daemon run}, @code{daemon status}, @code{event monitor}, @code{device list}, @code{config check}, @code{schema}, and @code{describe}.
 
-Rationale: A fixed noun-verb tree keeps the surface predictable.  Source: ESC-NEED-006; CLI Standard rule 7.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A fixed noun-verb tree keeps the surface predictable.  Source: ESC-NEED-006; CLI Standard rule 7.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-023 @emph{Global flags}
 @anchor{ESC-SRS-023}
 The CLI shall accept every global flag of CLI Standard §3 with the name, type, and effect that section defines.
 
-Rationale: Flags behave the same across Spacecraft Software tools.  Source: CLI Standard v1.1.0 §3.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Flags behave the same across Spacecraft Software tools.  Source: CLI Standard v1.1.0 §3.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-024 @emph{JSON envelope}
 @anchor{ESC-SRS-024}
 When JSON output is selected, every data-returning command shall write exactly one JSON document of the CLI Standard §6 envelope shape to standard output.
 
-Rationale: Agents parse one stable shape.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Agents parse one stable shape.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-025 @emph{Structured errors}
 @anchor{ESC-SRS-025}
 When a command fails in machine mode, the CLI shall write to standard error one JSON error object whose @code{hint} field holds a command the caller can run without elevated privileges, or the literal prefix @code{human:} followed by the action a person must take.
 
-Rationale: A runnable hint ends guess-and-retry loops.  Source: ESC-NEED-006; agentic CLI §3.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A runnable hint ends guess-and-retry loops.  Source: ESC-NEED-006; agentic CLI §3.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-026 @emph{Agent detection}
 @anchor{ESC-SRS-026}
 When the process runs in an agent environment, the CLI shall select JSON output.
 
-Rationale: Harnesses set descriptive values, not @code{1}.  Source: ESC-NEED-006; CLI Standard §5.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Harnesses set descriptive values, not @code{1}.  Source: ESC-NEED-006; CLI Standard §5.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-027 @emph{Exit codes}
 @anchor{ESC-SRS-027}
 The CLI shall exit with the codes of CLI Standard §4.
 
-Rationale: Exit status is an agent's control flow.  Source: CLI Standard §4.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Exit status is an agent's control flow.  Source: CLI Standard §4.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-028 @emph{Version attribution}
 @anchor{ESC-SRS-028}
 The @code{--version} output shall include the line @code{Maintained by Mohamed Hammad <Mohamed.Hammad@@SpacecraftSoftware.org>} and the project URL.
 
-Rationale: Attribution travels with the binary.  Source: Standard §15.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Attribution travels with the binary.  Source: Standard §15.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-029 @emph{Config location}
 @anchor{ESC-SRS-029}
 The CLI shall read the configuration from the path given by @code{--config}, else from @code{$XDG_CONFIG_HOME/escapepod/config.toml} for a session run, else from @code{/etc/escapepod/config.toml}.
 
-Rationale: One documented search order.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: One documented search order.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-030 @emph{Unknown keys}
 @anchor{ESC-SRS-030}
 When the configuration contains a key the schema does not define, the CLI shall exit with code 2.
 
-Rationale: A typo must not silently disable a mapping.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A typo must not silently disable a mapping.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-031 @emph{Tap timeout range}
 @anchor{ESC-SRS-031}
 When a tap timeout outside 50 ms to 2000 ms inclusive is given, the CLI shall exit with code 2.
 
-Rationale: Values outside the range make tapping impossible or unpredictable.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Values outside the range make tapping impossible or unpredictable.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-032 @emph{xcape mapping grammar}
 @anchor{ESC-SRS-032}
 The CLI shall accept @code{--map} with the xcape grammar @code{KEY=TAP[;KEY=TAP]...} and apply it as dual-role mappings with KEY as both the physical key and the hold key.
 
-Rationale: Xcape users keep their mapping string.  Source: ESC-NEED-008.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Xcape users keep their mapping string.  Source: ESC-NEED-008.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-033 @emph{Tap timeout flag}
 @anchor{ESC-SRS-033}
 The CLI shall accept @code{--tap-timeout} in milliseconds, overriding the configuration value.
 
-Rationale: Matches xcape's @code{-t}.  Source: ESC-NEED-008.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Matches xcape's @code{-t}.  Source: ESC-NEED-008.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-034 @emph{Device match rules}
 @anchor{ESC-SRS-034}
 The CLI shall accept per-device rules matching a device by name or by vendor and product identifier.
 
-Rationale: An external keyboard may need a different mapping.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: An external keyboard may need a different mapping.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-035 @emph{Config check}
 @anchor{ESC-SRS-035}
 The @code{config check} command shall validate the configuration without opening any input device or creating any virtual device.
 
-Rationale: A configuration is tested without risking the keyboard.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A configuration is tested without risking the keyboard.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-036 @emph{Device list}
 @anchor{ESC-SRS-036}
 The @code{device list} command shall report each input device's name, vendor identifier, product identifier, path, kind, and match status without read access to any event device.
 
-Rationale: Discovery must not need keylogging rights.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Discovery must not need keylogging rights.  Source: ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-037 @emph{Run confirmation}
 @anchor{ESC-SRS-037}
 When standard output is not a terminal, or the process runs in an agent environment, the @code{daemon run} command without @code{--dry-run} shall exit with code 2 unless @code{--yes} is given.
 
-Rationale: An agent must not grab the keyboard by accident.  Source: ESC-NEED-003; agentic CLI §7.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: An agent must not grab the keyboard by accident.  Source: ESC-NEED-003; agentic CLI §7.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-038 @emph{Screen-reader modifier}
 @anchor{ESC-SRS-038}
 When a session run finds an Orca modifier key named in the configuration, the daemon shall treat that key as protected.
 
-Rationale: Orca's laptop layout uses Caps Lock as its modifier.  Source: ESC-NEED-007; Standard §10.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Orca's laptop layout uses Caps Lock as its modifier.  Source: ESC-NEED-007; Standard §10.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-039 @emph{Dry run}
 @anchor{ESC-SRS-039}
 The @code{daemon run --dry-run} command shall report the devices it would grab and the mappings it would apply, then exit with code 0.
 
-Rationale: The plan is inspectable before the keyboard is taken.  Source: ESC-NEED-003; CLI Standard rule 3.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The plan is inspectable before the keyboard is taken.  Source: ESC-NEED-003; CLI Standard rule 3.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-040 @emph{Accessible output}
 @anchor{ESC-SRS-040}
@@ -282,7 +282,7 @@ Rationale: Screen readers read linear output.  Source: Standard §18.  Method: t
 @anchor{ESC-SRS-041}
 The @code{schema} command shall write a document that validates as JSON Schema Draft 2020-12.
 
-Rationale: The schema drops into LLM tool definitions.  Source: CLI Standard rule 4.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The schema drops into LLM tool definitions.  Source: CLI Standard rule 4.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-042 @emph{Provider schema formats}
 @anchor{ESC-SRS-042}
@@ -294,37 +294,37 @@ Rationale: Saves an adapter step per provider.  Source: agentic CLI §5.  Method
 @anchor{ESC-SRS-090}
 When the process runs in an agent environment, the CLI shall emit no ANSI colour sequence.
 
-Rationale: Colour codes are noise in an agent's context.  Source: ESC-NEED-006; CLI Standard §5.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Colour codes are noise in an agent's context.  Source: ESC-NEED-006; CLI Standard §5.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-091 @emph{Agent prompts}
 @anchor{ESC-SRS-091}
 When the process runs in an agent environment, the CLI shall not prompt for input.
 
-Rationale: An agent cannot answer a prompt and would hang.  Source: ESC-NEED-006; CLI Standard §5.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: An agent cannot answer a prompt and would hang.  Source: ESC-NEED-006; CLI Standard §5.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-092 @emph{Unknown key location}
 @anchor{ESC-SRS-092}
 When the configuration contains a key the schema does not define, the CLI shall report the line and column of that key.
 
-Rationale: The user finds the typo without searching.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The user finds the typo without searching.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-093 @emph{Screen-reader warning}
 @anchor{ESC-SRS-093}
 When a session run finds an Orca modifier key named in the configuration, the daemon shall emit a warning diagnostic naming that key.
 
-Rationale: The user learns why the mapping is inactive.  Source: ESC-NEED-007.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The user learns why the mapping is inactive.  Source: ESC-NEED-007.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-094 @emph{Dry run grabs nothing}
 @anchor{ESC-SRS-094}
 The @code{daemon run --dry-run} command shall not grab any input device.
 
-Rationale: A dry run must be free of the lockout risk.  Source: ESC-NEED-003; CLI Standard rule 3.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A dry run must be free of the lockout risk.  Source: ESC-NEED-003; CLI Standard rule 3.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-095 @emph{Code 6 reserved}
 @anchor{ESC-SRS-095}
 The CLI shall not exit with code 6 except after an emergency release.
 
-Rationale: The service unit treats code 6 as do-not-restart.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The service unit treats code 6 as do-not-restart.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @end table
 
@@ -372,7 +372,7 @@ Rationale: A way out that works when the mapping itself is broken.  Source: ESC-
 @anchor{ESC-SRS-049}
 The configuration shall be able to replace the default emergency chord of Backspace, Escape, and Enter.
 
-Rationale: Key bindings are remappable.  Source: Standard §10.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Key bindings are remappable.  Source: Standard §10.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-050 @emph{Device fault isolation}
 @anchor{ESC-SRS-050}

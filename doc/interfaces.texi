@@ -15,6 +15,9 @@ declared class would be stable by default; every one here declares one.
 
 @menu
 * Interface inventory::   Every interface, its version and class.
+* CLI interface::         Commands, global flags, output, errors, exit codes.
+* Configuration format::  The TOML file and the mapping grammar.
+* Environment interface:: Variables Escape Pod reads.
 @end menu
 
 @node Interface inventory
@@ -54,3 +57,118 @@ declared class would be stable by default; every one here declares one.
 Each interface's contract (names, types, ranges, units, encodings, error
 behaviour) is written as its own node when the interface is built: the CLI
 and JSON output in M2, the socket in M3, the packaging surface in M5.
+
+@node CLI interface
+@section CLI interface (version 1, unstable)
+
+@table @asis
+@item Commands
+@code{daemon run}, @code{daemon status}, @code{event monitor},
+@code{device list}, @code{config check}, @code{schema [@var{noun}
+[@var{verb}]]}, @code{describe}.  @code{run} is a human alias of
+@code{daemon run} and never appears in @code{schema} or @code{describe}.
+@item Global flags
+@option{--json}, @option{--format json|jsonl|yaml|csv|explore},
+@option{--fields @var{f1,f2}}, @option{--dry-run}, @option{-v}/@option{--verbose},
+@option{-q}/@option{--quiet}, @option{--no-color},
+@option{--color never|always|auto}, @option{--version},
+@option{--absolute-time}, @option{-0}/@option{--print0},
+@option{--yes}/@option{--force}, @option{--accessible},
+@option{--config @var{path}}.  @option{--quiet} with @option{--verbose}
+is a usage error.  @option{explore} is accepted and falls back to JSON with
+a @code{TUI_FALLBACK} warning: Escape Pod has no TUI.
+@item Mapping flags
+@option{--map @var{KEY=TAP[;KEY=TAP]...}} and @option{--tap-timeout @var{ms}}
+(50 to 2000) on @code{daemon run}, @code{config check} and
+@code{event monitor}; @option{--backend auto|evdev|x11} on @code{daemon run}.
+@item Output selection
+An explicit format wins; else an agent environment selects JSON; else a
+terminal selects human text; else JSON.  Human text is UTF-8 and parses with
+@command{awk}; JSON is compact, one document, on standard output only.
+@item Envelope
+@code{@{"metadata": @{"tool", "version", "command", "timestamp"@}, "data": ...@}},
+committed as @file{schemas/envelope.schema.json}.  Timestamps are ISO 8601
+UTC with @samp{Z}, whole seconds.
+@item Errors
+One compact line on standard error:
+@code{@{"error": @{"code", "exit_code", "message", "hint", "timestamp",
+"command", "docs_url"@}@}}, with extended fields @code{path}, @code{line},
+@code{column} or @code{position} where they apply.  The hint is a command
+runnable without privileges, or @samp{human:} and an action.  Human mode
+prints @samp{[ERROR] @var{message}} and an indented @samp{hint:} line.
+@item Diagnostics
+@code{@{"diagnostic": @{"severity", "code", "message", "hint",
+"timestamp", "command"@}@}} for @samp{warn}, @samp{ok} and @samp{info};
+human mode prints @samp{[WARN]}, @samp{[OK]}, @samp{[INFO]}.  The floor is
+@samp{error} under @option{--quiet}, @samp{info} under @option{--verbose},
+@samp{warn} under @env{AI_AGENT} or @env{AGENT}, else @samp{ok}.
+@item Exit codes (stable)
+0 success; 1 general failure; 2 usage or configuration error; 3 not found;
+4 permission denied or no backend; 5 conflict; 6 emergency release, produced
+only by the emergency chord.
+@end table
+
+@node Configuration format
+@section Configuration format (version 1, unstable)
+
+TOML, UTF-8, read from @option{--config}, else
+@file{$XDG_CONFIG_HOME/escapepod/config.toml} (or
+@file{~/.config/escapepod/config.toml}), else
+@file{/etc/escapepod/config.toml}.  Every table rejects unknown keys
+(exit 2, with the line and column).
+
+@table @code
+@item tap_timeout_ms
+Integer, 50 to 2000; default 200.
+@item emergency_chord
+Array of key names, at least one; default Backspace, Escape, Enter.
+@item protected
+Array of key names never mapped.
+@item [[dual_role]]
+@code{key} (physical key), @code{hold} (optional, defaults to @code{key}),
+@code{tap}.
+@item [[remap]]
+@code{from}, @code{to}.
+@item [[device]]
+Exactly one of @code{name} (the kernel device name) or @code{id}
+(@samp{VVVV:PPPP} in hexadecimal), and optionally @code{ignore},
+@code{tap_timeout_ms}, @code{dual_role} and @code{remap}, which replace the
+global lists for that device.  The first matching rule wins.
+@end table
+
+Key names are kernel names (@samp{KEY_CAPSLOCK}), kernel names without the
+prefix (@samp{capslock}), or the X keysym names xcape uses
+(@samp{Caps_Lock}, @samp{Control_L}, @samp{Escape}); case is ignored.
+@option{--map} takes @samp{KEY=TAP} entries separated by @samp{;}; KEY is
+both the physical and the hold key.  Multi-key taps (@samp{A|B}) are
+refused.  @option{--map} replaces the global @code{dual_role} list, and
+@option{--tap-timeout} every tap timeout.
+
+@node Environment interface
+@section Environment interface (version 1, stable)
+
+@table @env
+@item AI_AGENT
+@itemx AGENT
+Set to any non-empty value: agent environment (JSON, no colour, no prompts,
+warning floor).
+@item CI
+Any value but @samp{0} or @samp{false}: agent environment.
+@item NO_COLOR
+@itemx FORCE_COLOR
+@itemx CLICOLOR
+@itemx TERM
+Colour precedence, CLI Standard output-modes §6.
+@item SPACECRAFT_THEME
+A theme slug from the Steelbore palette contract; default @samp{steelbore}.
+@item SPACECRAFT_A11Y
+Any value but @samp{0} or @samp{false}: accessible mode.
+@item XDG_CONFIG_HOME
+@itemx XDG_DATA_HOME
+@itemx HOME
+The configuration search and the Orca settings file.
+@item ESCAPEPOD_SYSFS
+@itemx ESCAPEPOD_DEV_DIR
+Replace @file{/sys/class/input} and @file{/dev/input}, for tests and
+containers.
+@end table
