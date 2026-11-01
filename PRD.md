@@ -239,16 +239,16 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M4 — X11 fallback backend
 
-- [ ] ESC-SRS-063 Backend auto-selection
-- [ ] ESC-SRS-064 `--backend` override
-- [ ] ESC-SRS-065 X11 tap injection
-- [ ] ESC-SRS-066 X11 rejects remaps
-- [ ] ESC-SRS-067 X11 needs no device access
-- [ ] ESC-SRS-068 X11 connection loss exits 1
-- [ ] ESC-SRS-088 X11 injects tap keys only
-- [ ] ESC-SRS-100 Unavailable forced backend exits 4
-- [ ] ESC-SRS-101 X11 remap error hints `setxkbmap`
-- [ ] ESC-SRS-102 X11 loss names the display
+- [x] ESC-SRS-063 Backend auto-selection
+- [x] ESC-SRS-064 `--backend` override
+- [x] ESC-SRS-065 X11 tap injection
+- [x] ESC-SRS-066 X11 rejects remaps
+- [x] ESC-SRS-067 X11 needs no device access
+- [x] ESC-SRS-068 X11 connection loss exits 1
+- [x] ESC-SRS-088 X11 injects tap keys only
+- [x] ESC-SRS-100 Unavailable forced backend exits 4
+- [x] ESC-SRS-101 X11 remap error hints `setxkbmap`
+- [x] ESC-SRS-102 X11 loss names the display
 
 
 ## M5 — Privileges, packaging and manual

@@ -143,13 +143,13 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 
 ## M4 — X11 fallback backend
 
-- [ ] P-031 Backend selection: `auto` probes device read + `/dev/uinput` write → evdev, else
+- [x] P-031 Backend selection: `auto` probes device read + `/dev/uinput` write → evdev, else
       `DISPLAY` → x11, else exit 4; `--backend` override; forced-but-unavailable exits 4 —
       ESC-SRS-063, 064, 100
-- [ ] P-032 `escapepod-x11`: XRecord observation, XTest injection of tap keys only, remap
+- [x] P-032 `escapepod-x11`: XRecord observation, XTest injection of tap keys only, remap
       rejected (exit 2, hint `setxkbmap -option`), connection loss → error naming the
       display, exit 1; no device access — ESC-SRS-065, 066, 067, 068, 088, 101, 102
-- [ ] P-033 Xvfb test harness (`xdotool`/XTest driver) in `tools/ci.nu` and CI —
+- [x] P-033 Xvfb test harness (`xdotool`/XTest driver) in `tools/ci.nu` and CI —
       verification for ESC-SRS-065, 088
 
 ## M5 — Privileges, packaging and manual

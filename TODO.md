@@ -169,16 +169,16 @@ when that test passes. Identifiers are permanent.
 
 ## M4 — X11 fallback backend
 
-- [ ] T-080 P-031 Backend probe and `auto` selection; `--backend`; exit 4 paths
+- [x] T-080 P-031 Backend probe and `auto` selection; `--backend`; exit 4 paths
       (`ESC-SRS-063, 064, 100`)
-- [ ] T-081 P-032 `escapepod-x11`: XRecord context over key events via `x11rb`
-- [ ] T-082 P-032 XTest tap injection only; remap rejection with hint
+- [x] T-081 P-032 `escapepod-x11`: XRecord context over key events via `x11rb`
+- [x] T-082 P-032 XTest tap injection only; remap rejection with hint
       (`ESC-SRS-065, 066, 088, 101`)
-- [ ] T-083 P-032 Connection-loss handling: error naming display, exit 1
+- [x] T-083 P-032 Connection-loss handling: error naming display, exit 1
       (`ESC-SRS-068, 102`)
-- [ ] T-084 P-032 Runs with no device access (`ESC-SRS-067`) — test under a user with
-      no `escapepod` group
-- [ ] T-085 P-033 Xvfb harness in `tools/ci.nu` and CI job
+- [x] T-084 P-032 Runs with no device access (`ESC-SRS-067`): tested with the uinput
+      probe and every device directory pointing at nothing
+- [x] T-085 P-033 Xvfb harness in `tools/ci.nu` and CI job
 
 ## M5 — Privileges, packaging and manual
 

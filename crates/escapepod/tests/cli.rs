@@ -791,3 +791,86 @@ fn all_keys_is_refused_off_a_terminal_and_under_agents() {
         assert!(o.stdout.is_empty());
     }
 }
+
+// Verifies: ESC-SRS-066, ESC-SRS-101
+#[test]
+fn x11_refuses_remaps_with_a_setxkbmap_hint() {
+    let root = scratch("x11remap");
+    let config = root.join("c.toml");
+    fs::write(
+        &config,
+        "[[remap]]\nfrom = \"Caps_Lock\"\nto = \"Control_L\"\n",
+    )
+    .unwrap();
+    let o = cmd(&root)
+        .env("DISPLAY", ":999")
+        .args(["daemon", "run", "--yes", "--backend", "x11", "--config"])
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(2));
+    let e = &error_of(&o)["error"];
+    assert_eq!(e["code"], "X11_REMAP_UNSUPPORTED");
+    assert_eq!(e["hint"], "setxkbmap -option ctrl:nocaps");
+}
+
+// Verifies: ESC-SRS-064, ESC-SRS-100
+#[test]
+fn a_forced_backend_never_falls_back() {
+    let root = scratch("forced");
+    let evdev = cmd(&root)
+        .env("DISPLAY", ":999")
+        .args([
+            "daemon",
+            "run",
+            "--yes",
+            "--map",
+            "Caps_Lock=Escape",
+            "--backend",
+            "evdev",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        evdev.status.code(),
+        Some(4),
+        "no uinput: no fallback to X11 though DISPLAY is set"
+    );
+    assert!(
+        error_of(&evdev)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("uinput")
+    );
+    let x11 = cmd(&root)
+        .args([
+            "daemon",
+            "run",
+            "--yes",
+            "--map",
+            "Control_L=Escape",
+            "--backend",
+            "x11",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(x11.status.code(), Some(4), "no DISPLAY");
+    assert!(
+        error_of(&x11)["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("X11 backend is unavailable")
+    );
+}
+
+// Verifies: ESC-SRS-063
+#[test]
+fn auto_with_no_backend_exits_4() {
+    let root = scratch("nobackend");
+    let o = cmd(&root)
+        .args(["daemon", "run", "--yes", "--map", "Caps_Lock=Escape"])
+        .output()
+        .unwrap();
+    assert_eq!(o.status.code(), Some(4));
+    assert_eq!(error_of(&o)["error"]["code"], "BACKEND_UNAVAILABLE");
+}

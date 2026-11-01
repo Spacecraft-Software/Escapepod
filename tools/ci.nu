@@ -173,6 +173,14 @@ def gates []: nothing -> record {
         }
         audit: { run-cmd audit { ^cargo audit } }
         deny: { run-cmd deny { ^cargo deny check } }
+        x11: {
+            run-cmd x11 {
+                with-env { ESCAPEPOD_X11_REQUIRE: "1" } {
+                    (^cargo test -p escapepod --features x11-tests --locked
+                        --test x11 -- --test-threads=1)
+                }
+            }
+        }
         hardware: {
             run-cmd hardware {
                 with-env { ESCAPEPOD_HW_REQUIRE: "1" } {
