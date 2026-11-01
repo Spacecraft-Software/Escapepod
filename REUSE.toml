@@ -8,11 +8,3 @@ path = ["LICENSE", "Cargo.lock", "flake.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
-
-# Machine-readable data under software class (Standard §4.1.1): the
-# progress map (P-007). doc/requirements.toml carries its own header.
-[[annotations]]
-path = ["doc/progress-map.toml"]
-precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
-SPDX-License-Identifier = "GPL-3.0-or-later"

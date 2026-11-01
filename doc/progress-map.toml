@@ -1,0 +1,192 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The progress map: every PLAN.md work package tied to the
+# doc/requirements.toml rows that decide whether it is done. tools/progress.nu
+# reads it to check the PLAN ticks against the requirement statuses.
+#
+# Rule (PLAN.md "Done rule"): a work package with `requirements` is done when
+# every one of them is `verified`. A package with `rule = "landed"` has no
+# requirement of its own (a gate, tooling or a test harness); it is done when
+# it has landed on main, which its PLAN.md tick records, and `reason` says why.
+
+[[plan]]
+id = "P-001"
+rule = "landed"
+reason = "Gate G1: done when it lands with its gate record and tag"
+
+[[plan]]
+id = "P-002"
+requirements = ["ESC-SRS-001", "ESC-SRS-002", "ESC-SRS-004", "ESC-SRS-005", "ESC-SRS-006"]
+
+[[plan]]
+id = "P-003"
+requirements = ["ESC-SRS-003", "ESC-SRS-004"]
+
+[[plan]]
+id = "P-004"
+requirements = ["ESC-SRS-008"]
+
+[[plan]]
+id = "P-005"
+requirements = ["ESC-SRS-007", "ESC-SRS-021"]
+
+[[plan]]
+id = "P-006"
+requirements = ["ESC-SRS-007", "ESC-SRS-008"]
+
+[[plan]]
+id = "P-007"
+rule = "landed"
+reason = "Tooling for ESC-SRS-085, which P-041 verifies at M6"
+
+[[plan]]
+id = "P-008"
+rule = "landed"
+reason = "Gate G2: done when it lands with its gate record and tag"
+
+[[plan]]
+id = "P-009"
+requirements = ["ESC-SRS-021"]
+
+[[plan]]
+id = "P-010"
+requirements = ["ESC-SRS-009", "ESC-SRS-010", "ESC-SRS-011", "ESC-SRS-012", "ESC-SRS-013", "ESC-SRS-014", "ESC-SRS-015", "ESC-SRS-019"]
+
+[[plan]]
+id = "P-011"
+requirements = ["ESC-SRS-016", "ESC-SRS-017", "ESC-SRS-020"]
+
+[[plan]]
+id = "P-012"
+requirements = ["ESC-SRS-018"]
+
+[[plan]]
+id = "P-013"
+requirements = ["ESC-SRS-049"]
+
+[[plan]]
+id = "P-014"
+rule = "landed"
+reason = "Benchmark supporting ESC-SRS-079, which P-038 verifies"
+
+[[plan]]
+id = "P-015"
+requirements = ["ESC-SRS-022", "ESC-SRS-023", "ESC-SRS-024", "ESC-SRS-025", "ESC-SRS-026", "ESC-SRS-027", "ESC-SRS-028", "ESC-SRS-090", "ESC-SRS-091", "ESC-SRS-095"]
+
+[[plan]]
+id = "P-016"
+requirements = ["ESC-SRS-029", "ESC-SRS-030", "ESC-SRS-031", "ESC-SRS-032", "ESC-SRS-033", "ESC-SRS-034", "ESC-SRS-035", "ESC-SRS-092"]
+
+[[plan]]
+id = "P-017"
+requirements = ["ESC-SRS-036"]
+
+[[plan]]
+id = "P-018"
+requirements = ["ESC-SRS-037", "ESC-SRS-038", "ESC-SRS-039", "ESC-SRS-093", "ESC-SRS-094"]
+
+[[plan]]
+id = "P-019"
+requirements = ["ESC-SRS-040"]
+
+[[plan]]
+id = "P-020"
+requirements = ["ESC-SRS-041"]
+
+[[plan]]
+id = "P-021"
+rule = "landed"
+reason = "Test suite supporting every M2 requirement"
+
+[[plan]]
+id = "P-022"
+rule = "landed"
+reason = "Design item recorded in the Design node"
+
+[[plan]]
+id = "P-023"
+requirements = ["ESC-SRS-043", "ESC-SRS-044", "ESC-SRS-045"]
+
+[[plan]]
+id = "P-024"
+requirements = ["ESC-SRS-053", "ESC-SRS-057"]
+
+[[plan]]
+id = "P-025"
+requirements = ["ESC-SRS-046", "ESC-SRS-047", "ESC-SRS-048", "ESC-SRS-052", "ESC-SRS-096"]
+
+[[plan]]
+id = "P-026"
+requirements = ["ESC-SRS-050", "ESC-SRS-051", "ESC-SRS-097", "ESC-SRS-098"]
+
+[[plan]]
+id = "P-027"
+requirements = ["ESC-SRS-054", "ESC-SRS-055", "ESC-SRS-056", "ESC-SRS-099"]
+
+[[plan]]
+id = "P-028"
+requirements = ["ESC-SRS-058", "ESC-SRS-059", "ESC-SRS-060"]
+
+[[plan]]
+id = "P-029"
+requirements = ["ESC-SRS-061", "ESC-SRS-062"]
+
+[[plan]]
+id = "P-030"
+rule = "landed"
+reason = "Hardware tests supporting ESC-SRS-043 to 056"
+
+[[plan]]
+id = "P-031"
+requirements = ["ESC-SRS-063", "ESC-SRS-064", "ESC-SRS-100"]
+
+[[plan]]
+id = "P-032"
+requirements = ["ESC-SRS-065", "ESC-SRS-066", "ESC-SRS-067", "ESC-SRS-068", "ESC-SRS-088", "ESC-SRS-101", "ESC-SRS-102"]
+
+[[plan]]
+id = "P-033"
+rule = "landed"
+reason = "Xvfb harness supporting ESC-SRS-065 and 088"
+
+[[plan]]
+id = "P-034"
+requirements = ["ESC-SRS-069", "ESC-SRS-070", "ESC-SRS-071", "ESC-SRS-072", "ESC-SRS-073"]
+
+[[plan]]
+id = "P-035"
+requirements = ["ESC-SRS-074"]
+
+[[plan]]
+id = "P-036"
+requirements = ["ESC-SRS-075", "ESC-SRS-076", "ESC-SRS-077"]
+
+[[plan]]
+id = "P-037"
+requirements = ["ESC-SRS-078", "ESC-SRS-089"]
+
+[[plan]]
+id = "P-038"
+requirements = ["ESC-SRS-079", "ESC-SRS-080"]
+
+[[plan]]
+id = "P-039"
+requirements = ["ESC-SRS-081", "ESC-SRS-082"]
+
+[[plan]]
+id = "P-040"
+requirements = ["ESC-SRS-083", "ESC-SRS-084"]
+
+[[plan]]
+id = "P-041"
+requirements = ["ESC-SRS-085", "ESC-SRS-086"]
+
+[[plan]]
+id = "P-042"
+requirements = ["ESC-SRS-087"]
+
+[[plan]]
+id = "P-043"
+rule = "landed"
+reason = "Registry rows in the Projects repository"

@@ -58,11 +58,11 @@ when that test passes. Identifiers are permanent.
       `rust-toolchain.toml` tailoring; `rust-version` = MSRV in `Cargo.toml`
 - [x] T-019 P-005 Crate stubs with SPDX headers, `escapepod-core` `#![forbid(unsafe_code)]`,
       `cargo build` and `cargo clippy -- -D warnings` clean
-- [ ] T-020 P-006 `.github/workflows/ci.yml` (jobs: rust, posture, docs, trace)
-- [ ] T-021 P-006 `tools/ci.nu` mirroring every CI gate; documented in `AGENTS.md`
-- [ ] T-022 P-007 `tools/trace.nu` reading `doc/requirements.toml`; unit-tested on a
+- [x] T-020 P-006 `.github/workflows/ci.yml` (jobs: rust, posture, docs, trace)
+- [x] T-021 P-006 `tools/ci.nu` mirroring every CI gate; documented in `AGENTS.md`
+- [x] T-022 P-007 `tools/trace.nu` reading `doc/requirements.toml`; unit-tested on a
       fixture with an unknown id and a markerless `verified` row
-- [ ] T-023 P-007 `tools/progress.nu` + `doc/progress-map.toml` mapping `P-`/`T-` items to
+- [x] T-023 P-007 `tools/progress.nu` + `doc/progress-map.toml` mapping `P-`/`T-` items to
       requirements; prints the full §17.1 block
 - [ ] T-024 P-008 `Design` node in the manual: architecture, serial trade-off (§3.2),
       safety model, privacy model, device-I/O seam, poll primitive choice

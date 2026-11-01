@@ -30,49 +30,49 @@ figures (@file{tools/trace.nu}).
 @anchor{ESC-SRS-001}
 The repository shall pass @code{reuse lint} with exit status 0.
 
-Rationale: Every file needs a machine-readable licence.  Source: Standard §4.3.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Every file needs a machine-readable licence.  Source: Standard §4.3.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-002 @emph{Posture files}
 @anchor{ESC-SRS-002}
 The repository shall carry @code{README.md}, @code{NOTICE.md}, @code{CONTRIBUTING.md}, @code{LICENSE}, and @code{LICENSES/} at its root.
 
-Rationale: The project posture is stated where a reader looks first.  Source: Standard §5.2.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: The project posture is stated where a reader looks first.  Source: Standard §5.2.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-003 @emph{Agent context files}
 @anchor{ESC-SRS-003}
 The repository shall carry @code{AGENTS.md}, @code{CLAUDE.md}, and @code{SKILL.md} at its root.
 
-Rationale: Agents load project invariants from these files.  Source: Standard §5.7; CLI Standard rule 4.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Agents load project invariants from these files.  Source: Standard §5.7; CLI Standard rule 4.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-004 @emph{Category declared}
 @anchor{ESC-SRS-004}
 @code{README.md}, @code{AGENTS.md}, and the @code{PROJECTS.md} registry shall each declare assurance Category B.
 
-Rationale: The category decides the evidence owed.  Source: Standard §19.2.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: The category decides the evidence owed.  Source: Standard §19.2.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-005 @emph{Security policy}
 @anchor{ESC-SRS-005}
 The repository shall carry a @code{SECURITY.md} naming the reporting channel, acknowledgement target, scope, supported versions, disclosure terms, and credit policy.
 
-Rationale: The daemon handles every keystroke, so a reporting path is needed.  Source: Standard §26.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: The daemon handles every keystroke, so a reporting path is needed.  Source: Standard §26.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-006 @emph{Tailoring register}
 @anchor{ESC-SRS-006}
 The repository shall carry a @code{COMPLIANCE.md} holding the §19.5 tailoring register.
 
-Rationale: Category B records tailoring in a dedicated file.  Source: Standard §19.5.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Category B records tailoring in a dedicated file.  Source: Standard §19.5.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-007 @emph{CI gate}
 @anchor{ESC-SRS-007}
 The CI pipeline shall block a merge unless @code{cargo fmt --check}, @code{cargo clippy --all-targets --all-features --locked -- -D warnings}, @code{cargo test}, @code{cargo audit}, and @code{cargo deny check} each exit with status 0.
 
-Rationale: Defects and vulnerable dependencies are caught before merge.  Source: Standard §3.3, §24.2.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Defects and vulnerable dependencies are caught before merge.  Source: Standard §3.3, §24.2.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-008 @emph{Text format}
 @anchor{ESC-SRS-008}
 The CI pipeline shall fail when a tracked text file contains a carriage return byte.
 
-Rationale: Line endings stay LF across contributors.  Source: Standard §6.5.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Line endings stay LF across contributors.  Source: Standard §6.5.  Method: test.  Priority: mandatory.  Status: verified.
 
 @end table
 
