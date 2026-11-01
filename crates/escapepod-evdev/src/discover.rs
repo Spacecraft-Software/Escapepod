@@ -102,6 +102,14 @@ pub fn scan(sysfs_class: &Path, dev_dir: &Path) -> io::Result<Vec<DeviceInfo>> {
     Ok(found.into_iter().map(|(_, d)| d).collect())
 }
 
+/// Describes the one device node `node` (such as `event3`), as [`scan`]
+/// would; `None` when sysfs has no such device.
+#[must_use]
+pub fn info(sysfs_class: &Path, dev_dir: &Path, node: &str) -> Option<DeviceInfo> {
+    node.strip_prefix("event")?.parse::<u32>().ok()?;
+    read_device(&sysfs_class.join(node).join("device"), dev_dir.join(node))
+}
+
 /// Reads one device's sysfs attributes; `None` when they are missing.
 fn read_device(dir: &Path, path: PathBuf) -> Option<DeviceInfo> {
     let name = fs::read_to_string(dir.join("name"))

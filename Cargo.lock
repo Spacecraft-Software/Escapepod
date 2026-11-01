@@ -279,6 +279,7 @@ dependencies = [
  "escapepod-core",
  "escapepod-evdev",
  "escapepod-x11",
+ "evdev",
  "jiff",
  "jsonschema",
  "nix",

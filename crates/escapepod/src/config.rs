@@ -5,6 +5,7 @@
 //! validation into per-device engine rules.
 //!
 //! ```toml
+//! grab = "all"                             # or "listed": only [[device]] rules
 //! tap_timeout_ms = 200                     # 50 to 2000
 //! emergency_chord = ["BackSpace", "Escape", "Return"]
 //! protected = []                           # keys never mapped
@@ -46,6 +47,7 @@ pub const SYSTEM_PATH: &str = "/etc/escapepod/config.toml";
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct File {
+    grab: Option<Spanned<String>>,
     tap_timeout_ms: Option<Spanned<u64>>,
     emergency_chord: Option<Vec<Spanned<String>>>,
     #[serde(default)]
@@ -144,6 +146,9 @@ pub struct Config {
     pub devices: Vec<DeviceRule>,
     /// Managed keys left unmapped because they are protected.
     pub shadowed: Vec<KeyCode>,
+    /// `grab = "listed"`: only keyboards a `[[device]]` rule names are
+    /// grabbed; the default, `"all"`, grabs every keyboard.
+    pub listed_only: bool,
 }
 
 impl Config {
@@ -152,6 +157,7 @@ impl Config {
         match self.devices.iter().find(|r| r.matcher.matches(device)) {
             Some(r) if r.ignore => None,
             Some(r) => Some(&r.rules),
+            None if self.listed_only => None,
             None => Some(&self.global),
         }
     }
@@ -275,7 +281,17 @@ pub fn load(
         });
     }
     let shadowed = shadowed(&global_rules, &devices);
+    let listed_only = match file
+        .grab
+        .as_ref()
+        .map(|g| (g.get_ref().as_str(), g.span().start))
+    {
+        None | Some(("all", _)) => false,
+        Some(("listed", _)) => true,
+        Some((_, at)) => return Err(ctx.at(Some(at), "`grab` is \"all\" or \"listed\"")),
+    };
     Ok(Config {
+        listed_only,
         source: path.map(Path::to_path_buf),
         global: global_rules,
         chord,
@@ -584,6 +600,18 @@ mod tests {
         assert!(
             c.rules_for(&dev("Other", 1, 1))
                 .is_some_and(|r| r.is_managed(KeyCode::CAPSLOCK))
+        );
+    }
+
+    #[test]
+    fn listed_grab_skips_unlisted_keyboards() {
+        let p = write("grab = \"listed\"\n[[device]]\nid = \"5350:5445\"\n");
+        let c = load(Some(&p), &Overrides::default(), &[]).unwrap();
+        assert!(c.rules_for(&dev("x", 0x5350, 0x5445)).is_some());
+        assert!(c.rules_for(&dev("laptop", 1, 1)).is_none());
+        let bad = write("grab = \"some\"\n");
+        assert!(
+            load(Some(&bad), &Overrides::default(), &[]).is_err_and(|e| e.exit() == Exit::Usage)
         );
     }
 

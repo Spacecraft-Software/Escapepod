@@ -22,3 +22,7 @@ workspace = true
 escapepod-core.workspace = true
 evdev.workspace = true
 nix.workspace = true
+
+[features]
+# Fake devices for tests of the daemon logic; never in a release build.
+fake = []

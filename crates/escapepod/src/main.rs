@@ -13,18 +13,13 @@ mod config;
 mod daemon;
 mod error;
 mod keymap;
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "event monitor and the status socket use it from M3"
-    )
-)]
 mod monitor;
 mod orca;
 mod output;
 mod schema;
+mod service;
 mod theme;
+mod x11;
 
 use std::process::ExitCode;
 

@@ -20,9 +20,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Escape Pod — capability surface
 
-> **Status:** pre-release. `config check`, `device list`, `schema`, `describe`,
-> `--version` and `daemon run --dry-run` work (M2). `daemon run`, `daemon status`
-> and `event monitor` exit 4 until the evdev backend lands (M3).
+> **Status:** pre-release. Every command works on the evdev backend; the X11
+> fallback (`--backend x11`) arrives with M4.
 
 ## Sub-command tree
 

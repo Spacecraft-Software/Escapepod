@@ -173,8 +173,20 @@ def gates []: nothing -> record {
         }
         audit: { run-cmd audit { ^cargo audit } }
         deny: { run-cmd deny { ^cargo deny check } }
+        hardware: {
+            run-cmd hardware {
+                with-env { ESCAPEPOD_HW_REQUIRE: "1" } {
+                    (^cargo test -p escapepod --features hardware-tests --locked
+                        --test hardware -- --test-threads=1)
+                }
+            }
+        }
     }
 }
+
+# Gates run only when named with --only: they need hardware access
+# (/dev/uinput and /dev/input), so never in the default run.
+const OPT_IN = [hardware]
 
 # Runs every gate (or the ones named by --only) and exits 1 if any fails.
 def main [
@@ -186,7 +198,7 @@ def main [
         print ($all | columns | str join "\n")
         return
     }
-    let names = if $only == null { $all | columns } else {
+    let names = if $only == null { $all | columns | where { |g| $g not-in $OPT_IN } } else {
         $only | split row "," | each { str trim }
     }
     let unknown = ($names | where { |n| $n not-in ($all | columns) })
