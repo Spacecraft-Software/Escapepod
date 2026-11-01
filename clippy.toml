@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The §7 no-unwrap/expect/panic gate targets fallible PRODUCTION paths; tests
+# assert programming errors loudly by design.
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-panic-in-tests = true
