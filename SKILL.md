@@ -20,9 +20,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Escape Pod — capability surface
 
-> **Status:** pre-release. The surface below is the designed one (PRD,
-> ESC-SRS-022 to 042); the commands land at M2 and M3. Until then the binary
-> exits 1.
+> **Status:** pre-release. `config check`, `device list`, `schema`, `describe`,
+> `--version` and `daemon run --dry-run` work (M2). `daemon run`, `daemon status`
+> and `event monitor` exit 4 until the evdev backend lands (M3).
 
 ## Sub-command tree
 
@@ -34,8 +34,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `escapepod event monitor` — stream Escape Pod's decisions. Unmanaged keys
   show as `other`. `--all-keys` needs a real terminal and is refused under
   an agent.
-- `escapepod device list` — list input devices from udev metadata and
-  whether the rules match them. Opens no event device.
+- `escapepod device list` — list input devices from sysfs and their status
+  (`grab`, `read`, `ignored`, `own`, `none`). Opens no event device.
 - `escapepod config check` — validate a config file and print errors with
   line and column. Opens no device.
 - `escapepod schema` — JSON Schema (2020-12) of every command's input and
@@ -44,14 +44,16 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 ## Output formats
 
-json (default when piped or under an agent), jsonl (streams), human (tty).
+json (default when piped or under an agent), jsonl (one record per line),
+yaml, csv, human (tty). `explore` falls back to json with a warning.
 
 ## Global flags
 
 --json, --format, --fields, --dry-run, --verbose, --quiet, --no-color,
---color, --help, --version, --yes, --accessible
+--color, --help, --version, --absolute-time, --print0, --yes (--force),
+--accessible, --config PATH
 
-Daemon flags: --config PATH, --backend auto|evdev|x11,
+Daemon flags: --backend auto|evdev|x11,
 --map 'KEY=TAP[;KEY=TAP…]', --tap-timeout MS (50–2000).
 
 ## Exit codes
@@ -64,7 +66,7 @@ Daemon flags: --config PATH, --backend auto|evdev|x11,
 
 ```
 escapepod config check --config ~/.config/escapepod/config.toml --json
-escapepod device list --fields name,matched --format jsonl
+escapepod device list --fields name,status --format jsonl
 escapepod daemon run --map 'Control_L=Escape' --dry-run --json
 escapepod daemon run --map 'Control_L=Escape' --yes
 escapepod daemon status --json

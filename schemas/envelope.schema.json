@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://EscapePod.SpacecraftSoftware.org/schema/envelope/1",
+  "title": "Escape Pod JSON envelope, interface version 1",
+  "description": "The CLI Standard §6 envelope every data-returning escapepod command writes to standard output in JSON mode.",
+  "type": "object",
+  "required": ["metadata", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["tool", "version", "command", "timestamp"],
+      "properties": {
+        "tool": { "const": "escapepod" },
+        "version": { "type": "string" },
+        "command": { "type": "string" },
+        "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "maintainer": { "type": "string" },
+        "website": { "type": "string" }
+      }
+    },
+    "data": {}
+  }
+}

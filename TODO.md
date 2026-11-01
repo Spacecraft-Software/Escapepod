@@ -98,41 +98,43 @@ when that test passes. Identifiers are permanent.
 
 ## M2 — CLI, config and agent surface
 
-- [ ] T-040 P-015 clap tree and `run` alias; `--help` with two examples per command and the
+- [x] T-040 P-015 clap tree and `run` alias; `--help` with two examples per command and the
       project URL footer (`ESC-SRS-022`)
-- [ ] T-041 P-015 Global flags §3 incl. `--quiet`/`--verbose` exclusivity (`ESC-SRS-023`)
-- [ ] T-042 P-015 `agent_env.rs` (presence-based), `mode.rs` cascade, colour precedence
+- [x] T-041 P-015 Global flags §3 incl. `--quiet`/`--verbose` exclusivity (`ESC-SRS-023`)
+- [x] T-042 P-015 Presence-based agent detection, the output cascade and colour precedence
+      (`output.rs`)
       (`ESC-SRS-026, 090, 091`)
-- [ ] T-043 P-015 `envelope.rs` `Response<T>`, compact when not a TTY, `None` omitted
+- [x] T-043 P-015 The JSON envelope (`output.rs`), one compact document
       (`ESC-SRS-024`)
-- [ ] T-044 P-015 `error.rs` `AppError` {code, exit_code, message, hint, timestamp, command,
-      docs_url}; hint catalogue from `assets/error-hint-catalog.json`; `human:` prefix
+- [x] T-044 P-015 `error.rs` `AppError` {code, exit_code, message, hint, timestamp, command,
+      docs_url}; hints written per error after the agentic-CLI catalogue; `human:` prefix
       (`ESC-SRS-025`)
-- [ ] T-045 P-015 `ExitCode` enum; 6 only from emergency path (`ESC-SRS-027, 095`)
-- [ ] T-046 P-015 `--version` text and JSON attribution (`ESC-SRS-028`)
-- [ ] T-047 P-016 Config model with `deny_unknown_fields`; `toml` span → line/column in the
+- [x] T-045 P-015 `ExitCode` enum; 6 only from emergency path (`ESC-SRS-027, 095`)
+- [x] T-046 P-015 `--version` text and JSON attribution (`ESC-SRS-028`)
+- [x] T-047 P-016 Config model with `deny_unknown_fields`; `toml` span → line/column in the
       error (`ESC-SRS-030, 092`)
-- [ ] T-048 P-016 Search order `--config` → XDG → `/etc` (`ESC-SRS-029`)
-- [ ] T-049 P-016 Tap-timeout range and `--tap-timeout` override (`ESC-SRS-031, 033`)
-- [ ] T-050 P-016 `--map` parser (`KEY=TAP[;…]`, xcape key names → `KeyCode`)
+- [x] T-048 P-016 Search order `--config` → XDG → `/etc` (`ESC-SRS-029`)
+- [x] T-049 P-016 Tap-timeout range and `--tap-timeout` override (`ESC-SRS-031, 033`)
+- [x] T-050 P-016 `--map` parser (`KEY=TAP[;…]`, xcape key names → `KeyCode`)
       (`ESC-SRS-032`)
-- [ ] T-051 P-016 Per-device rules by name or `vendor:product` (`ESC-SRS-034`)
-- [ ] T-052 P-016 `config check` with no device I/O (`ESC-SRS-035`)
-- [ ] T-053 P-017 `device list` from udev properties; `--fields`, `jsonl` (`ESC-SRS-036`)
-- [ ] T-054 P-018 `--yes` guard off TTY / under agent (`ESC-SRS-037`)
-- [ ] T-055 P-018 `--dry-run` plan output, no grab (`ESC-SRS-039, 094`)
-- [ ] T-056 P-018 Orca modifier discovery and protection with warning
+- [x] T-051 P-016 Per-device rules by name or `vendor:product` (`ESC-SRS-034`)
+- [x] T-052 P-016 `config check` with no device I/O (`ESC-SRS-035`)
+- [x] T-053 P-017 `device list` from sysfs (G2 design); `--fields`, `jsonl` (`ESC-SRS-036`)
+- [x] T-054 P-018 `--yes` guard off TTY / under agent (`ESC-SRS-037`)
+- [x] T-055 P-018 `--dry-run` plan output, no grab (`ESC-SRS-039, 094`)
+- [x] T-056 P-018 Orca modifier discovery and protection with warning
       (`ESC-SRS-038, 093`); discovery path recorded in `Design`
-- [ ] T-057 P-019 `theme.rs` binding §11.1 tokens read from `steelbore.toml`; `NO_COLOR`
-      → mono; `SPACECRAFT_THEME` honoured
+- [x] T-057 P-019 `theme.rs` binding §11.1 tokens read from `steelbore.toml`; `NO_COLOR`
+      → no colour, `steelbore-mono` by slug; `SPACECRAFT_THEME` honoured
 - [ ] T-058 P-019 Accessible mode toggle and linear `event monitor` (`ESC-SRS-040`)
-- [ ] T-059 P-020 `schema` via `schemars`; test validates against the 2020-12 meta-schema
+- [x] T-059 P-020 `schema` built from one command table; test validates against the 2020-12
+      meta-schema
       (`ESC-SRS-041`)
-- [ ] T-060 P-020 `describe` manifest: commands, flags, exit codes, examples
+- [x] T-060 P-020 `describe` manifest: commands, flags, exit codes, examples
 - [ ] T-108 P-044 `schema --format` provider wrappers (`ESC-SRS-042`) (optional)
-- [ ] T-061 P-021 `tests/cli/` suite: schema, exit codes, TTY/non-TTY, agent env (real
-      `AI_AGENT` value), idempotency, input validation (control chars, paths),
-      cross-shell roundtrip, UTF-8, schema/describe smoke, context-file presence
+- [x] T-061 P-021 `tests/cli/` suite: schema, exit codes, TTY/non-TTY, agent env (real
+      `AI_AGENT` value), idempotency, input validation (control chars), Nushell
+      roundtrip, UTF-8, schema/describe smoke, context-file presence
 
 ## M3 — evdev backend and safety
 

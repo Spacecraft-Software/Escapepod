@@ -180,33 +180,33 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M2 — CLI, config and agent surface
 
-- [ ] ESC-SRS-022 Command tree
-- [ ] ESC-SRS-023 Global flags
-- [ ] ESC-SRS-024 JSON envelope on data commands
-- [ ] ESC-SRS-025 Structured errors with runnable hints
-- [ ] ESC-SRS-026 Agent environment selects JSON
-- [ ] ESC-SRS-027 Exit code map
-- [ ] ESC-SRS-028 `--version` attribution
-- [ ] ESC-SRS-029 Config file location and `--config`
-- [ ] ESC-SRS-030 Unknown config keys exit 2
-- [ ] ESC-SRS-031 Tap timeout range enforced
-- [ ] ESC-SRS-032 xcape `--map` grammar
-- [ ] ESC-SRS-033 `--tap-timeout` flag
-- [ ] ESC-SRS-034 Per-device match rules
-- [ ] ESC-SRS-035 `config check` grabs nothing
-- [ ] ESC-SRS-036 `device list` needs no device access
-- [ ] ESC-SRS-037 `daemon run` needs `--yes` off a terminal
-- [ ] ESC-SRS-038 Orca modifier key protected
-- [ ] ESC-SRS-039 `daemon run --dry-run` reports the plan
+- [x] ESC-SRS-022 Command tree
+- [x] ESC-SRS-023 Global flags
+- [x] ESC-SRS-024 JSON envelope on data commands
+- [x] ESC-SRS-025 Structured errors with runnable hints
+- [x] ESC-SRS-026 Agent environment selects JSON
+- [x] ESC-SRS-027 Exit code map
+- [x] ESC-SRS-028 `--version` attribution
+- [x] ESC-SRS-029 Config file location and `--config`
+- [x] ESC-SRS-030 Unknown config keys exit 2
+- [x] ESC-SRS-031 Tap timeout range enforced
+- [x] ESC-SRS-032 xcape `--map` grammar
+- [x] ESC-SRS-033 `--tap-timeout` flag
+- [x] ESC-SRS-034 Per-device match rules
+- [x] ESC-SRS-035 `config check` grabs nothing
+- [x] ESC-SRS-036 `device list` needs no device access
+- [x] ESC-SRS-037 `daemon run` needs `--yes` off a terminal
+- [x] ESC-SRS-038 Orca modifier key protected
+- [x] ESC-SRS-039 `daemon run --dry-run` reports the plan
 - [ ] ESC-SRS-040 Accessible mode output is linear
-- [ ] ESC-SRS-041 `schema` is valid JSON Schema 2020-12
+- [x] ESC-SRS-041 `schema` is valid JSON Schema 2020-12
 - [ ] ESC-SRS-042 Provider-wrapped schema formats (optional)
-- [ ] ESC-SRS-090 No colour under agents
-- [ ] ESC-SRS-091 No prompts under agents
-- [ ] ESC-SRS-092 Unknown key line and column reported
-- [ ] ESC-SRS-093 Orca clash warning
-- [ ] ESC-SRS-094 Dry run grabs nothing
-- [ ] ESC-SRS-095 Exit code 6 reserved for emergency
+- [x] ESC-SRS-090 No colour under agents
+- [x] ESC-SRS-091 No prompts under agents
+- [x] ESC-SRS-092 Unknown key line and column reported
+- [x] ESC-SRS-093 Orca clash warning
+- [x] ESC-SRS-094 Dry run grabs nothing
+- [x] ESC-SRS-095 Exit code 6 reserved for emergency
 
 
 ## M3 — evdev backend and safety
@@ -217,7 +217,7 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [ ] ESC-SRS-046 Held keys released on SIGTERM / SIGINT
 - [ ] ESC-SRS-047 Held keys released on panic
 - [ ] ESC-SRS-048 Emergency chord releases grabs
-- [ ] ESC-SRS-049 Emergency chord is configurable
+- [x] ESC-SRS-049 Emergency chord is configurable
 - [ ] ESC-SRS-050 Device read error releases that device
 - [ ] ESC-SRS-051 Hotplugged keyboard grabbed within 1 s
 - [ ] ESC-SRS-052 Removed device's held keys released
