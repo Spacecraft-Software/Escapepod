@@ -84,79 +84,79 @@ Rationale: Line endings stay LF across contributors.  Source: Standard §6.5.  M
 @anchor{ESC-SRS-009}
 When a dual-role key is pressed, the engine shall emit the press of its hold key in the output for that same input event.
 
-Rationale: Pass-through adds no delay to modifier use.  Source: ESC-NEED-005.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Pass-through adds no delay to modifier use.  Source: ESC-NEED-005.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-010 @emph{Tap on lone quick release}
 @anchor{ESC-SRS-010}
 When a dual-role key that is not used is released no later than the tap timeout after its press, the engine shall emit, after the release of the hold key, one press and one release of the tap key.
 
-Rationale: This is the core behaviour.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: This is the core behaviour.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-011 @emph{No tap after another key}
 @anchor{ESC-SRS-011}
 When another key is pressed between the press and the release of a dual-role key, the engine shall not emit the tap key for that release.
 
-Rationale: A modifier chord must not also send the tap key.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A modifier chord must not also send the tap key.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-012 @emph{No tap after a pointer button}
 @anchor{ESC-SRS-012}
 When a pointer button is pressed between the press and the release of a dual-role key, the engine shall not emit the tap key for that release.
 
-Rationale: Xcape sent a stray Escape after Control-click.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Xcape sent a stray Escape after Control-click.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-013 @emph{No tap after the timeout}
 @anchor{ESC-SRS-013}
 When a dual-role key is released later than the tap timeout after its press, the engine shall not emit the tap key for that release.
 
-Rationale: A long hold that is abandoned is not a tap.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A long hold that is abandoned is not a tap.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-014 @emph{Own autorepeat}
 @anchor{ESC-SRS-014}
 The engine shall not treat an autorepeat event of a dual-role key as a press of another key.
 
-Rationale: Kernel autorepeat of the held key would otherwise cancel every tap.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Kernel autorepeat of the held key would otherwise cancel every tap.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-015 @emph{Overlapping dual-role keys}
 @anchor{ESC-SRS-015}
 When a second dual-role key is pressed while a first is held, the engine shall mark the first as used.
 
-Rationale: Two dual-role keys held together form a chord.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Two dual-role keys held together form a chord.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-016 @emph{Remap}
 @anchor{ESC-SRS-016}
 When a remap source key produces a press, release, or autorepeat event, the engine shall emit the event of the same kind for the remap target key.
 
-Rationale: Caps Lock to Control is the usual companion of a dual-role Control.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Caps Lock to Control is the usual companion of a dual-role Control.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-017 @emph{Pass-through}
 @anchor{ESC-SRS-017}
 The engine shall emit every event of a key that is not managed unchanged and in input order.
 
-Rationale: Escape Pod must be invisible for the rest of the keyboard.  Source: ESC-NEED-005.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Escape Pod must be invisible for the rest of the keyboard.  Source: ESC-NEED-005.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-018 @emph{Balanced output}
 @anchor{ESC-SRS-018}
 For every input sequence in which each pressed key is later released, the engine shall emit a release for every key press it emitted.
 
-Rationale: An unbalanced press is a stuck key.  Source: ESC-NEED-003.  Method: test (property-based, over generated sequences).  Priority: mandatory.  Status: baselined.
+Rationale: An unbalanced press is a stuck key.  Source: ESC-NEED-003.  Method: test (property-based, over generated sequences).  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-019 @emph{Default tap timeout}
 @anchor{ESC-SRS-019}
 When the configuration sets no tap timeout, the engine shall use a tap timeout of 200 ms.
 
-Rationale: 200 ms covers a deliberate tap and excludes an abandoned hold.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: 200 ms covers a deliberate tap and excludes an abandoned hold.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-020 @emph{Protected keys}
 @anchor{ESC-SRS-020}
 The engine shall emit every event of a protected key unchanged.
 
-Rationale: Assistive-technology modifiers are never captured.  Source: ESC-NEED-007; Standard §10.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Assistive-technology modifiers are never captured.  Source: ESC-NEED-007; Standard §10.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-021 @emph{No unsafe in the engine}
 @anchor{ESC-SRS-021}
 The @code{escapepod-core} crate shall declare @code{#![forbid(unsafe_code)]}.
 
-Rationale: The engine is the trust core and needs no unsafe code.  Source: Standard §3.1.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: The engine is the trust core and needs no unsafe code.  Source: Standard §3.1.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @end table
 

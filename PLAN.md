@@ -52,7 +52,7 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
       `SKILL.md` (CLI capability surface) — ESC-SRS-003, 004
 - [x] P-004 Text format: `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`, index CRLF
       gate — ESC-SRS-008
-- [ ] P-005 Workspace skeleton: `Cargo.toml` (crates `escapepod-core`, `escapepod-evdev`,
+- [x] P-005 Workspace skeleton: `Cargo.toml` (crates `escapepod-core`, `escapepod-evdev`,
       `escapepod-x11`, `escapepod`; edition 2024; release profile with every flag noted),
       `clippy.toml`, `rustfmt.toml`, `deny.toml`, `.cargo/audit.toml`, `flake.nix` devShell
       (rustc, cargo-audit/deny/nextest/mutants/llvm-cov/cyclonedx/bloat, hyperfine, reuse,
@@ -73,18 +73,18 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 
 ## M1 — Tap/hold engine
 
-- [ ] P-009 Core types: `KeyCode`, `Event {Press, Release, Repeat}`, monotonic `Instant`
+- [x] P-009 Core types: `KeyCode`, `Event {Press, Release, Repeat}`, monotonic `Instant`
       (µs), `Rules` (dual-role, remap, protected set, tap timeout, emergency chord);
       `#![forbid(unsafe_code)]`; `thiserror` canonical error structs — ESC-SRS-021
-- [ ] P-010 `Engine::step(event, now) -> Vec<Output>` dual-role state machine: hold key at
+- [x] P-010 `Engine::step(event, now) -> Vec<Output>` dual-role state machine: hold key at
       once, tap on lone quick release, used on key/pointer press, timeout, own autorepeat,
       overlapping dual-role keys — ESC-SRS-009, 010, 011, 012, 013, 014, 015, 019
-- [ ] P-011 Remap, pass-through in order, protected keys — ESC-SRS-016, 017, 020
-- [ ] P-012 Property tests (`proptest`): balanced output, input order, plus a differential
+- [x] P-011 Remap, pass-through in order, protected keys — ESC-SRS-016, 017, 020
+- [x] P-012 Property tests (`proptest`): balanced output, input order, plus a differential
       oracle (tiny reference model) for §21.4 independence — ESC-SRS-018
 - [ ] P-013 Emergency chord detection in core (`Output::Emergency` once every chord key is
       down) and chord configurability — ESC-SRS-049 (core half of 048)
-- [ ] P-014 `criterion` bench of `step()` (ns per event) as the engine's share of the
+- [x] P-014 `criterion` bench of `step()` (ns per event) as the engine's share of the
       latency budget — supports ESC-SRS-079
 
 ## M2 — CLI, config and agent surface

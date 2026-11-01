@@ -70,6 +70,20 @@ def category-gate []: nothing -> bool {
     $missing | is-empty
 }
 
+# Fails unless the engine crate forbids unsafe code (Standard §3.1).
+# Verifies: ESC-SRS-021
+def forbid-gate []: nothing -> bool {
+    let ok = (
+        open --raw crates/escapepod-core/src/lib.rs
+        | lines
+        | any { |l| ($l | str trim) == "#![forbid(unsafe_code)]" }
+    )
+    if not $ok {
+        print -e "error: crates/escapepod-core/src/lib.rs must declare #![forbid(unsafe_code)]"
+    }
+    $ok
+}
+
 # The tracked files of the repository at `dir` whose index copy holds a CR
 # byte (Standard §6.5). Verifies: ESC-SRS-008
 export def crlf-files [dir: string = "."]: nothing -> list<string> {
@@ -129,6 +143,7 @@ def gates []: nothing -> record {
     {
         posture: { posture-gate }
         category: { category-gate }
+        forbid: { forbid-gate }
         crlf: { crlf-gate }
         skill: { skill-gate }
         reuse: { run-cmd reuse { ^reuse lint } }

@@ -77,22 +77,23 @@ when that test passes. Identifiers are permanent.
 
 ## M1 — Tap/hold engine
 
-- [ ] T-029 P-009 `KeyCode` (Linux `KEY_*` newtype), `Event`, `Instant` (µs), `Output`
-- [ ] T-030 P-009 `Rules`: dual-role list, remap map, protected set, tap timeout
+- [x] T-029 P-009 `KeyCode` (Linux `KEY_*` newtype), `Event`, `Instant` (µs), `Output`
+- [x] T-030 P-009 `Rules`: dual-role list, remap map, protected set, tap timeout
       (default 200 ms), emergency chord; `RulesError` via `thiserror`
-- [ ] T-031 P-010 `Engine::step` hold-key-at-once and tap on lone quick release
+- [x] T-031 P-010 `Engine::step` hold-key-at-once and tap on lone quick release
       (`Verifies: ESC-SRS-009, 010`)
-- [ ] T-032 P-010 Used-flag on key press and pointer press; timeout; own autorepeat
+- [x] T-032 P-010 Used-flag on key press and pointer press; timeout; own autorepeat
       (`ESC-SRS-011, 012, 013, 014`)
-- [ ] T-033 P-010 Overlapping dual-role keys; default timeout (`ESC-SRS-015, 019`)
-- [ ] T-034 P-011 Remap all three event kinds; pass-through order; protected keys
+- [x] T-033 P-010 Overlapping dual-role keys; default timeout (`ESC-SRS-015, 019`)
+- [x] T-034 P-011 Remap all three event kinds; pass-through order; protected keys
       (`ESC-SRS-016, 017, 020`)
-- [ ] T-035 P-012 `proptest` strategies for key/pointer sequences; balanced-output and
+- [x] T-035 P-012 `proptest` strategies for key/pointer sequences; balanced-output and
       order properties (`ESC-SRS-018`)
-- [ ] T-036 P-012 Reference model `tests/oracle.rs` and differential test
-- [ ] T-037 P-013 Chord tracker → `Output::Emergency`; configurable set (`ESC-SRS-049`)
-- [ ] T-038 P-014 `benches/step.rs` (criterion); number recorded in `doc/budgets.md`
-- [ ] T-039 P-009 Core doc-tests on every public item; `cargo doc` with intra-doc links as
+- [x] T-036 P-012 Reference model `tests/oracle.rs` and differential test
+- [x] T-037 P-013 Chord tracker → `Output::Emergency`; configurable set (`ESC-SRS-049`)
+- [x] T-038 P-014 `benches/step.rs` (std-only harness: criterion would add some 40 crates);
+      number recorded in `doc/budgets.md`
+- [x] T-039 P-009 Core doc-tests on every public item; `cargo doc` with intra-doc links as
       errors
 
 ## M2 — CLI, config and agent surface

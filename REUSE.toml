@@ -8,3 +8,10 @@ path = ["LICENSE", "Cargo.lock", "flake.lock"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Seeds proptest writes when a property fails; committed as regressions.
+[[annotations]]
+path = ["**/*.proptest-regressions"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
+SPDX-License-Identifier = "GPL-3.0-or-later"

@@ -163,19 +163,19 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M1 — Tap/hold engine
 
-- [ ] ESC-SRS-009 Hold key pressed at once
-- [ ] ESC-SRS-010 Tap key on lone quick release
-- [ ] ESC-SRS-011 No tap after another key press
-- [ ] ESC-SRS-012 No tap after a pointer button press
-- [ ] ESC-SRS-013 No tap after the tap timeout
-- [ ] ESC-SRS-014 Own autorepeat does not cancel the tap
-- [ ] ESC-SRS-015 Overlapping dual-role keys cancel each other's tap
-- [ ] ESC-SRS-016 One-to-one remap
-- [ ] ESC-SRS-017 Unmapped keys pass through in order
-- [ ] ESC-SRS-018 Every emitted press gets a release
-- [ ] ESC-SRS-019 Default tap timeout 200 ms
-- [ ] ESC-SRS-020 Protected keys left unmapped
-- [ ] ESC-SRS-021 Core crate forbids `unsafe`
+- [x] ESC-SRS-009 Hold key pressed at once
+- [x] ESC-SRS-010 Tap key on lone quick release
+- [x] ESC-SRS-011 No tap after another key press
+- [x] ESC-SRS-012 No tap after a pointer button press
+- [x] ESC-SRS-013 No tap after the tap timeout
+- [x] ESC-SRS-014 Own autorepeat does not cancel the tap
+- [x] ESC-SRS-015 Overlapping dual-role keys cancel each other's tap
+- [x] ESC-SRS-016 One-to-one remap
+- [x] ESC-SRS-017 Unmapped keys pass through in order
+- [x] ESC-SRS-018 Every emitted press gets a release
+- [x] ESC-SRS-019 Default tap timeout 200 ms
+- [x] ESC-SRS-020 Protected keys left unmapped
+- [x] ESC-SRS-021 Core crate forbids `unsafe`
 
 
 ## M2 — CLI, config and agent surface
