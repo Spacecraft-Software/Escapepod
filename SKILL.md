@@ -20,8 +20,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Escape Pod — capability surface
 
-> **Status:** pre-release. Every command works on the evdev backend; the X11
-> fallback (`--backend x11`) arrives with M4.
+> **Status:** pre-release. Every command works, on the evdev backend and the
+> X11 fallback (dual-role keys only; remaps are refused there).
 
 ## Sub-command tree
 

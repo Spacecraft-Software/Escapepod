@@ -30,6 +30,7 @@ serde_json.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
+x11rb.workspace = true
 evdev.workspace = true
 escapepod-evdev = { workspace = true, features = ["fake"] }
 assert_cmd.workspace = true
@@ -39,3 +40,5 @@ jsonschema.workspace = true
 [features]
 # The uinput loopback tests: they create virtual keyboards, so they never run by default.
 hardware-tests = []
+# The X11 backend under Xvfb; needs the Xvfb binary.
+x11-tests = []

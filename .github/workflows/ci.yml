@@ -85,6 +85,21 @@ jobs:
       - name: PDF
         run: make -C doc pdf
 
+  x11:
+    name: X11 backend under Xvfb
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ env.NU_VERSION }}
+      - name: Xvfb
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb
+      - run: nu tools/ci.nu --only x11
+
   hardware:
     name: uinput loopback (hardware tests)
     runs-on: ubuntu-latest

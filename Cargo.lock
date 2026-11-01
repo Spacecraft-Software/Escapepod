@@ -287,6 +287,7 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+ "x11rb",
 ]
 
 [[package]]

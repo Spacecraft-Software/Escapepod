@@ -486,61 +486,61 @@ Rationale: The user learns the reload did not apply.  Source: ESC-NEED-006.  Met
 @anchor{ESC-SRS-063}
 When @code{--backend} is absent or @code{auto}, the daemon shall select the evdev backend if it can read a matched keyboard and write @code{/dev/uinput}, else the X11 backend if @code{DISPLAY} is set, else exit with code 4.
 
-Rationale: The best available backend is used without configuration.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The best available backend is used without configuration.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-064 @emph{Backend override}
 @anchor{ESC-SRS-064}
 The daemon shall use the backend named by @code{--backend evdev} or @code{--backend x11}.
 
-Rationale: The choice can be forced for testing.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The choice can be forced for testing.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-065 @emph{X11 tap}
 @anchor{ESC-SRS-065}
 On the X11 backend, when the conditions of ESC-SRS-010 hold, the daemon shall inject one press and one release of the tap key.
 
-Rationale: The X11 fallback keeps the core behaviour.  Source: ESC-NEED-002.  Method: test (under Xvfb).  Priority: mandatory.  Status: baselined.
+Rationale: The X11 fallback keeps the core behaviour.  Source: ESC-NEED-002.  Method: test (under Xvfb).  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-066 @emph{X11 rejects remaps}
 @anchor{ESC-SRS-066}
 On the X11 backend, when the configuration contains a remap, the daemon shall exit with code 2.
 
-Rationale: X RECORD cannot suppress a key, so a remap cannot be honoured.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: X RECORD cannot suppress a key, so a remap cannot be honoured.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-067 @emph{X11 needs no device access}
 @anchor{ESC-SRS-067}
 The X11 backend shall run without read access to any event device and without write access to @code{/dev/uinput}.
 
-Rationale: The fallback exists for sessions without device access.  Source: ESC-NEED-002; ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The fallback exists for sessions without device access.  Source: ESC-NEED-002; ESC-NEED-004.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-068 @emph{X11 connection loss}
 @anchor{ESC-SRS-068}
 When the X server connection is lost, the daemon shall exit with code 1.
 
-Rationale: A dead connection must be visible to the supervisor.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A dead connection must be visible to the supervisor.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-088 @emph{X11 injects taps only}
 @anchor{ESC-SRS-088}
 On the X11 backend, the daemon shall inject tap-key events and no other events.
 
-Rationale: The physical hold key already reached the X server, so injecting it again would double it.  Source: ESC-NEED-001.  Method: test (under Xvfb).  Priority: mandatory.  Status: baselined.
+Rationale: The physical hold key already reached the X server, so injecting it again would double it.  Source: ESC-NEED-001.  Method: test (under Xvfb).  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-100 @emph{Forced backend unavailable}
 @anchor{ESC-SRS-100}
 When the backend named by @code{--backend} is unavailable, the daemon shall exit with code 4.
 
-Rationale: A forced backend must not silently fall back.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A forced backend must not silently fall back.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-101 @emph{X11 remap hint}
 @anchor{ESC-SRS-101}
 On the X11 backend, when the configuration contains a remap, the error's hint shall name @code{setxkbmap -option}.
 
-Rationale: Points the user at the X11-native way to remap.  Source: ESC-NEED-006; agentic CLI §3.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Points the user at the X11-native way to remap.  Source: ESC-NEED-006; agentic CLI §3.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-102 @emph{X11 loss diagnostic}
 @anchor{ESC-SRS-102}
 When the X server connection is lost, the daemon shall emit an error diagnostic naming the display.
 
-Rationale: The log says why the daemon stopped.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The log says why the daemon stopped.  Source: ESC-NEED-006.  Method: test.  Priority: mandatory.  Status: verified.
 
 @end table
 

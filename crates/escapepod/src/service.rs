@@ -210,32 +210,87 @@ pub fn run(
     io: &mut Io<'_>,
     reload: &dyn Fn() -> Result<Config, AppError>,
 ) -> Result<Exit, AppError> {
-    if backend == BackendArg::X11 {
-        return crate::x11::run(&cfg, mode, io);
-    }
-    // Probe the uinput node before creating anything. `ESCAPEPOD_UINPUT`
-    // names another node to probe, so tests can force this failure.
     let probe = io.env.var("ESCAPEPOD_UINPUT").unwrap_or("/dev/uinput");
-    let created = std::fs::OpenOptions::new()
+    let uinput = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(probe)
-        .and_then(|_| UinputKeyboard::create());
-    let sink = match created {
-        Ok(s) => s,
-        Err(e) if backend == BackendArg::Auto && io.env.var("DISPLAY").is_some() => {
-            mode.diag(
-                io.err,
-                Severity::Info,
-                "BACKEND_SELECTED",
-                &format!("no /dev/uinput ({e}); using the X11 backend"),
-                None,
-            );
+        .map(drop);
+    match select(
+        backend,
+        uinput.is_ok(),
+        || any_keyboard_readable(&cfg, io.env),
+        io.env.var("DISPLAY").is_some(),
+    ) {
+        Selected::X11 => {
+            if backend == BackendArg::Auto {
+                mode.diag(
+                    io.err,
+                    Severity::Info,
+                    "BACKEND_SELECTED",
+                    "no readable keyboard or no /dev/uinput; using the X11 backend",
+                    None,
+                );
+            }
             return crate::x11::run(&cfg, mode, io);
         }
-        Err(e) => return Err(no_uinput(&e)),
-    };
+        Selected::None => {
+            return Err(match uinput {
+                Err(e) if backend == BackendArg::Evdev => no_uinput(&e),
+                _ => AppError::new(
+                    "BACKEND_UNAVAILABLE",
+                    Exit::Permission,
+                    "no backend: no readable keyboard with /dev/uinput, and DISPLAY is not set; no device was grabbed",
+                    "human: run as the escapepod service account (manual: Service), or in an X session with --backend x11",
+                ),
+            });
+        }
+        Selected::Evdev => {}
+    }
+    // The virtual keyboard is created before any device is opened.
+    let sink = UinputKeyboard::create().map_err(|e| no_uinput(&e))?;
     evdev_loop(Daemon::new(EvdevOpener, sink, cfg), mode, io, reload)
+}
+
+/// The backend `daemon run` uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Selected {
+    /// The kernel input layer.
+    Evdev,
+    /// The X11 fallback.
+    X11,
+    /// Neither is available: exit 4.
+    None,
+}
+
+/// Chooses the backend. `auto` takes evdev when `/dev/uinput` is writable
+/// and a matched keyboard is readable, else X11 when `DISPLAY` is set,
+/// else none. A forced backend is used or fails; it never falls back.
+/// Implements: ESC-SRS-063, ESC-SRS-064, ESC-SRS-100
+pub fn select(
+    backend: BackendArg,
+    uinput: bool,
+    keyboard: impl FnOnce() -> bool,
+    display: bool,
+) -> Selected {
+    match backend {
+        BackendArg::Evdev if uinput => Selected::Evdev,
+        BackendArg::X11 => Selected::X11,
+        BackendArg::Auto if uinput && keyboard() => Selected::Evdev,
+        BackendArg::Auto if display => Selected::X11,
+        BackendArg::Evdev | BackendArg::Auto => Selected::None,
+    }
+}
+
+/// Whether any keyboard the configuration matches can be opened for
+/// reading (opened and closed at once; never grabbed).
+fn any_keyboard_readable(cfg: &Config, env: &Env) -> bool {
+    app::scan_devices(env).unwrap_or_default().iter().any(|d| {
+        d.kind == DeviceKind::Keyboard
+            && !d.is_own()
+            && cfg.rules_for(d).is_some()
+            && std::fs::File::open(&d.path).is_ok()
+    })
 }
 
 /// The error for a virtual keyboard that cannot be created
@@ -652,6 +707,39 @@ pub fn monitor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Verifies: ESC-SRS-063, ESC-SRS-064, ESC-SRS-100
+    #[test]
+    fn backend_selection() {
+        use BackendArg::{Auto, Evdev, X11};
+        assert_eq!(select(Auto, true, || true, true), Selected::Evdev);
+        assert_eq!(
+            select(Auto, true, || false, true),
+            Selected::X11,
+            "no readable keyboard"
+        );
+        assert_eq!(
+            select(Auto, false, || true, true),
+            Selected::X11,
+            "no uinput"
+        );
+        assert_eq!(select(Auto, false, || true, false), Selected::None);
+        assert_eq!(
+            select(Evdev, true, || false, true),
+            Selected::Evdev,
+            "forced: keyboards may come later"
+        );
+        assert_eq!(
+            select(Evdev, false, || true, true),
+            Selected::None,
+            "forced evdev never falls back"
+        );
+        assert_eq!(
+            select(X11, true, || true, false),
+            Selected::X11,
+            "forced x11; fails later without DISPLAY"
+        );
+    }
     use crate::config::{Overrides, load};
     use escapepod_core::KeyCode;
     use escapepod_evdev::DeviceInfo;
