@@ -23,13 +23,13 @@ when that test passes. Identifiers are permanent.
 
 ## M0 — Foundation and compliance
 
-- [ ] T-001 P-001 Run the §20.4 gate over ESC-SRS-001–102; record findings in
+- [x] T-001 P-001 Run the §20.4 gate over ESC-SRS-001–102; record findings in
       `COMPLIANCE.md` "Gate records / G1"
-- [ ] T-002 P-001 Write `doc/requirements.toml` from the `Requirements` chapter (102 rows,
+- [x] T-002 P-001 Write `doc/requirements.toml` from the `Requirements` chapter (102 rows,
       `milestone` per PRD)
-- [ ] T-003 P-001 Port Operator `tools/srs.nu`; render `doc/requirements.texi`; replace the
+- [x] T-003 P-001 Port Operator `tools/srs.nu`; render `doc/requirements.texi`; replace the
       chapter in `doc/escapepod.texi` with `@include requirements.texi`; manual builds clean
-- [ ] T-004 P-001 Flip every status to `baselined`; push signed tag `g1-requirements-0.1`
+- [x] T-004 P-001 Flip every status to `baselined`; push signed tag `g1-requirements-0.1`
 - [x] T-005 P-002 Copy `LICENSE` (GPL-3.0-or-later) from `/spacecraft-software/license/`;
       `LICENSES/GPL-3.0-or-later.txt -> ../LICENSE`; add `LICENSES/CC-BY-SA-4.0.txt`
 - [x] T-006 P-002 `README.md`: description, Project Posture (Personal/Hobby, Category B,

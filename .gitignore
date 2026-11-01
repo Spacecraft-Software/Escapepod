@@ -9,3 +9,10 @@ chat/
 
 # Cargo build output.
 /target/
+
+# Manual build output (make -C doc).
+/doc/escapepod.info
+/doc/escapepod.html
+/doc/escapepod.pdf
+/doc/escapepod.*[a-z][a-z]
+!/doc/escapepod.texi

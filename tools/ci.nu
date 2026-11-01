@@ -90,6 +90,24 @@ def skill-gate []: nothing -> record<gate: string, ok: bool> {
     { gate: skill ok: ($length <= 1000) }
 }
 
+# Fails when the manual does not build to Info and HTML, or when either
+# build prints a warning (ESC-SRS-078). PDF needs TeX and is built in CI.
+def manual-gate []: nothing -> record<gate: string, ok: bool> {
+    let info = (do { ^makeinfo --no-split -o /dev/null doc/escapepod.texi } | complete)
+    let html = (
+        do { ^texi2any --html --no-split -o /dev/null doc/escapepod.texi } | complete
+    )
+    let ok = (
+        $info.exit_code == 0 and $html.exit_code == 0
+        and ($info.stderr | is-empty) and ($html.stderr | is-empty)
+    )
+    if not $ok {
+        print -e "error: gate manual failed"
+        print -e $info.stderr $html.stderr
+    }
+    { gate: manual ok: $ok }
+}
+
 # Runs every local gate and exits 1 if any fails. The cargo gates are
 # ESC-SRS-007's merge-blocking set.
 def main []: nothing -> nothing {
@@ -98,6 +116,8 @@ def main []: nothing -> nothing {
         (crlf-gate)
         (skill-gate)
         (run-gate reuse { ^reuse lint })
+        (run-gate srs { ^nu tools/srs.nu --check })
+        (manual-gate)
         (run-gate fmt { ^cargo fmt --all --check })
         (run-gate clippy {
             ^cargo clippy --all-targets --all-features --locked -- -D warnings

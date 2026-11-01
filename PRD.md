@@ -20,7 +20,7 @@ MVP: M0–M6 — Escape Pod v0.1
 **Repository:** `Spacecraft-Software/Escapepod` (GitHub) · `/spacecraft-software/escapepod` (local)\
 **Assurance:** Category B (Standard §19) · **Posture:** Personal / Hobby (§5.1)\
 **Requirement prefix:** `ESC`\
-**Status:** Planning — requirements `draft`, awaiting G1
+**Status:** Planning — requirements `baselined` at G1 (2026-11-01)
 
 Escape Pod is a Linux daemon that gives one key two jobs: tapped on its own it sends one key
 (Escape), held with other keys it acts as a modifier (Control). It is the Spacecraft Software
@@ -30,7 +30,8 @@ it works under X11, Wayland, and the console, with an X11 fallback for sessions 
 
 This file is the §17.5 tracking document. It sequences the work; it does not define it. **The
 requirements themselves — with rationale, source, priority, verification method, and status — live
-in [`doc/escapepod.texi`](doc/escapepod.texi), nodes `Needs` and `Requirements`** (Standard §20.1).
+in [`doc/requirements.toml`](doc/requirements.toml), rendered into the `Requirements` node of
+[`doc/escapepod.texi`](doc/escapepod.texi); the needs are its `Needs` node** (Standard §20.1).
 Every task item below carries the §20.3 identifier of the requirement it discharges.
 
 
