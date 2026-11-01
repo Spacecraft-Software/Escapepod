@@ -106,8 +106,10 @@ allowed to read status never grants the device access held by group `escapepod`.
 `monitor --all-keys` does not go through the daemon at all: it reads devices itself, so it can
 never show more than the caller could already read.
 
-**Dependencies (to be qualified at G2, §24).** `evdev` 0.13.2, `udev` 0.9.3, `x11rb` 0.14.0,
-`clap` 4.6.7, `serde` 1.0.229, `toml` 1.1.7, `signal-hook` 0.4.5 — versions as of 2026-10-08.
+**Dependencies (qualified at G2, §24; see [`DEPENDENCIES.md`](DEPENDENCIES.md)).** `evdev` 0.13.2,
+`nix` 0.29.0, `x11rb` 0.14.0, `clap` 4.6.7, `serde` 1.0.229, `toml` 1.1.8, `serde_json` 1.0.154,
+`jiff` 0.2.38. At G2 `udev` and `signal-hook` gave way to sysfs, inotify and `signalfd` through `nix`
+(manual, `Design` chapter).
 
 
 ## Interfaces
@@ -275,6 +277,8 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [ ] ESC-SRS-085 Traceability matrix gates CI
 - [ ] ESC-SRS-086 SBOM shipped per release
 - [ ] ESC-SRS-087 Clean install from all three packages
+- [ ] ESC-SRS-103 Stripped binary within budget
+- [ ] ESC-SRS-104 `config check` cold start within budget
 
 ---
 

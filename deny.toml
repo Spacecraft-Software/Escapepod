@@ -10,8 +10,10 @@ all-features = true
 
 [licenses]
 # Widen only as a dependency actually lands (`cargo deny list`), never ahead.
-# Empty at M0: the workspace has no third-party dependency yet.
-allow = []
+# Set at G2 from the qualified graph (DEPENDENCIES.md): every licence below is
+# GPL-3.0-compatible. Unicode-3.0 is unicode-ident's data licence; jiff's
+# Unlicense is dual with MIT, so MIT is the one taken.
+allow = ["Apache-2.0", "MIT", "Unicode-3.0"]
 # The workspace crates themselves are unpublished; accept their own licence.
 private = { ignore = true }
 

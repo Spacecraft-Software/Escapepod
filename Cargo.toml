@@ -34,6 +34,19 @@ publish = false
 escapepod-core = { path = "crates/escapepod-core" }
 escapepod-evdev = { path = "crates/escapepod-evdev" }
 escapepod-x11 = { path = "crates/escapepod-x11" }
+# Runtime dependencies, qualified in DEPENDENCIES.md (gate G2, Standard §24).
+# Every one is pinned to the minor version that record qualified.
+clap = { version = "4.6.7", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
+evdev = { version = "0.13.2", default-features = false }
+jiff = { version = "0.2.38", default-features = false, features = ["std"] }
+nix = { version = "0.29.0", default-features = false, features = ["fs", "inotify", "poll", "signal", "socket", "user"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+toml = { version = "1.1.8", default-features = false, features = ["parse", "serde", "std"] }
+x11rb = { version = "0.14.0", default-features = false, features = ["record", "xtest"] }
+# Test-only dependencies (not in the trust path, §24.1).
+assert_cmd = "2.2.2"
+proptest = { version = "1.12.0", default-features = false, features = ["std"] }
 
 [workspace.lints.rust]
 # §3.1 stability: memory safety is the primary lever. No unsafe anywhere; the
@@ -84,6 +97,10 @@ unnecessary_safety_doc = "warn"
 unneeded_field_pattern = "warn"
 unused_result_ok = "warn"
 literal_string_with_formatting_args = "allow"
+# The duplicates come from upstream (serde_derive on syn 3, clap_derive on
+# syn 2) and cannot be resolved here; cargo-deny reports them as warnings
+# and DEPENDENCIES.md checks the runtime graph has none.
+multiple_crate_versions = "allow"
 
 # --- Release profile (Standard §3.2 / §3.2.1: every flag noted) --------------
 [profile.release]

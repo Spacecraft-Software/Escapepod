@@ -1,0 +1,56 @@
+@c SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+@c SPDX-License-Identifier: CC-BY-SA-4.0
+
+@node Interfaces
+@chapter Interfaces
+@cindex interface control document
+@cindex ICD
+
+This chapter is the interface control document (Standard §23.2;
+ESC-SRS-089).  It was drafted at gate G2 and is completed in M5; it is
+frozen at G3.  Every interface has its own version, which changes only when
+the interface does.  Data interfaces carry a committed JSON Schema under
+@file{schemas/}, which the tests validate against.  An interface with no
+declared class would be stable by default; every one here declares one.
+
+@menu
+* Interface inventory::   Every interface, its version and class.
+@end menu
+
+@node Interface inventory
+@section Interface inventory
+
+@multitable @columnfractions .24 .22 .10 .12 .32
+@headitem Interface @tab §23.1 class @tab Version @tab Stability @tab Schema and consumers
+@item CLI command tree and flags
+@tab Command-line surface @tab 1 @tab unstable
+@tab @code{escapepod schema}; users, agents, the systemd unit
+@item JSON envelope and errors
+@tab Machine-readable output @tab 1 @tab unstable
+@tab @file{schemas/envelope.schema.json}; agents, @code{daemon status}
+@item Exit codes 0 to 6
+@tab Command-line surface @tab 1 @tab stable
+@tab none (a table); the systemd unit (@code{RestartPreventExitStatus=6})
+@item Configuration file
+@tab On-disk and configuration @tab 1 @tab unstable
+@tab @file{schemas/config.schema.json}; users, the NixOS module
+@item xcape mapping grammar
+@tab Command-line surface @tab 1 @tab stable
+@tab none (a grammar); former xcape users
+@item Status socket protocol
+@tab Wire and IPC @tab 1 @tab unstable
+@tab @file{schemas/status.schema.json}; @code{daemon status}
+@item Environment variables
+@tab Environment variables @tab 1 @tab stable
+@tab none; agent harnesses, terminals
+@item Paths and packaging surface
+@tab Filesystem layout @tab 1 @tab unstable
+@tab none; packagers, the NixOS module
+@item Crate APIs
+@tab Library API @tab 0 @tab internal
+@tab none; the workspace's own crates only (unpublished)
+@end multitable
+
+Each interface's contract (names, types, ranges, units, encodings, error
+behaviour) is written as its own node when the interface is built: the CLI
+and JSON output in M2, the socket in M3, the packaging surface in M5.

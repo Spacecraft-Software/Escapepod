@@ -63,6 +63,8 @@ for version @value{VERSION}, at assurance Category B (The Steelbore Standard
 * Terminology::         Terms used with one meaning throughout.
 * Needs::               Why Escape Pod exists.
 * Requirements::        What Escape Pod shall do.
+* Design::              How Escape Pod does it (gate G2).
+* Interfaces::          The interface control document.
 @end menu
 
 @node Terminology
@@ -90,6 +92,9 @@ A dual-role key is @dfn{used} once any other key press, or any pointer button
 press, arrives between its press and its release.
 @item engine
 The @code{escapepod-core} state machine.
+@item held-keys ledger
+The record of every key Escape Pod holds down on the virtual device, and
+which device holds it.
 @item daemon
 A running @code{escapepod daemon run} process.
 @item evdev backend
@@ -110,7 +115,7 @@ The machine budgets are measured on (§22.4): a Lenovo ThinkPad T490s
 (Intel Core i7-8665U, 4 cores and 8 threads, 32 GiB of RAM, NVMe SSD,
 NixOS 26.05), with the daemon pinned to two cores so that it stands in for
 the low-end baseline of a 2-core x86-64 machine with 4 GiB of RAM.  The
-workload is recorded at gate G2.
+reference workload is defined under @ref{Budgets}.
 @end table
 
 @node Needs
@@ -158,5 +163,7 @@ pass-through (the hold key is emitted at once, never buffered); the platform
 is Linux; the language is Rust.
 
 @include requirements.texi
+@include design.texi
+@include interfaces.texi
 
 @bye

@@ -23,6 +23,9 @@ re-read at the G3 release gate.
 |--------|--------|---------------|------|
 | `spacecraft-agentic-cli` §4 (implicit `--yes` under `AI_AGENT` / `AGENT`) | tailored | `daemon run` grabs every keyboard, so an agent must pass `--yes` explicitly (ESC-SRS-037); the same skill's §7 threat model takes precedence over its §4 default | 2026-10-08 |
 | §24.2 toolchain pin in `rust-toolchain.toml` | tailored | The release toolchain is pinned by `flake.lock` (nixpkgs `6774f7bc`, the revision Operator pins); `nix develop -c rustc -V` names the exact rustc, and CI pins the same version. The MSRV is a separate figure, `rust-version = "1.88.0"` in `Cargo.toml`, checked by CI's own msrv job. A rustup-downloaded toolchain does not run on NixOS without an FHS loader, so a `rust-toolchain.toml` pin would break the maintainer's own builds, which is the environment §21.5 validation runs in. | 2026-10-10 |
+| §13 UI/UX design system | not-applicable | Escape Pod has no graphical interface: it is a daemon and a command line, so there is no component system to declare | 2026-11-01 |
+| §3.3 post-quantum cryptography | not-applicable | Escape Pod uses no cryptography: no network, no keys, no signatures at run time (the service is restricted to `AF_UNIX` and `AF_NETLINK`, ESC-SRS-072) | 2026-11-01 |
+| §22.1 throughput or frame time | applied as latency | The primary work rate is one keystroke at human speed; the budget that matters is the added latency per event (ESC-SRS-079), not events per second | 2026-11-01 |
 
 
 ## Gate records
@@ -48,6 +51,31 @@ and `PROJECTS.md` (ESC-SRS-004).
 | G1-8 | Set | Complete | Error, degraded and shutdown behaviour checked | Covered: signal, panic, removal, read error, failed reload, lost X connection, emergency exit |
 
 No requirement was withdrawn. The baseline is the commit tagged `g1-requirements-0.1`.
+
+### G2 — Design (2026-11-01)
+
+| Evidence | Where |
+|---|---|
+| Architecture recorded | Manual, `Design` chapter: `Architecture`, `Engine design`, `Sessions and ledger` |
+| Concurrency decision and trade-off (§3.2) | `Design` → `Concurrency`: serial, one `poll(2)`, no async runtime |
+| Safety and privacy models | `Design` → `Safety model`, `Privacy model` |
+| Budgets declared with initial margins (§22) | `Design` → `Budgets`: ESC-SRS-079, 080, and the new ESC-SRS-103 (binary size) and 104 (cold start), all green on estimates |
+| Reference machine and workload (§22.4) | Manual `Terminology` (machine) and `Budgets` (workload) |
+| Interfaces identified, ICD drafted (§23) | Manual `Interfaces` chapter: nine interfaces with version and stability class |
+| Dependencies qualified (§24) | `DEPENDENCIES.md`: every direct runtime dependency, 49 crates in the graph, no duplicates; `cargo audit` and `cargo deny` pass with the licence list set from the graph |
+
+Changes against the PRD and the G1 baseline, made here:
+
+- **Re-entry of G1, additive.** ESC-SRS-103 (stripped binary ≤ 6 MiB) and ESC-SRS-104 (`config check`
+  ≤ 50 ms) are new M6 requirements, because §22.1 asks a Category B project for a ceiling on each
+  applicable resource and the G1 set carried only latency and memory. No baselined requirement
+  changed.
+- **Hotplug without the `udev` crate.** Devices are discovered from sysfs and hotplug comes from an
+  inotify watch on `/dev/input`, through the `nix` crate the graph already has. This drops a C
+  library (libudev) from the build and keeps ESC-SRS-036 and 051 as written.
+- **No `signal-hook`.** Signals arrive on a `signalfd`, also through `nix`.
+
+The design baseline is the commit tagged `g2-design-0.1`.
 
 ---
 
