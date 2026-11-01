@@ -10,9 +10,9 @@ SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 # Machine-readable data under software class (Standard §4.1.1): the
-# requirement set and its progress map (G1, P-001/P-007).
+# progress map (P-007). doc/requirements.toml carries its own header.
 [[annotations]]
-path = ["doc/requirements.toml", "doc/progress-map.toml"]
+path = ["doc/progress-map.toml"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
 SPDX-License-Identifier = "GPL-3.0-or-later"

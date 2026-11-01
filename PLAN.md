@@ -40,7 +40,7 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 
 ## M0 — Foundation and compliance
 
-- [ ] P-001 G1: §20.4 characteristics gate over ESC-SRS-001–102; migrate the `Requirements`
+- [x] P-001 G1: §20.4 characteristics gate over ESC-SRS-001–102; migrate the `Requirements`
       chapter into `doc/requirements.toml` (id, title, text, rationale, source, method,
       priority, status, milestone); `tools/srs.nu` renders `doc/requirements.texi`,
       `@include`d by `doc/escapepod.texi`; statuses `draft → baselined`; signed tag
