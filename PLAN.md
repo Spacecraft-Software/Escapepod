@@ -64,9 +64,9 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
       on unknown id or `implemented`/`verified` without marker; `--release` orphans; emits the
       §17.1 block) and `tools/progress.nu` (TODO/PLAN rows via `doc/progress-map.toml`) —
       ESC-SRS-085 (verified at M6)
-- [ ] P-008 G2: `Design` node (architecture, serial `poll(2)` trade-off, safety and privacy
-      models, device-I/O seam), `DEPENDENCIES.md` trust path (`evdev`, `udev`, `x11rb`,
-      `toml`, `serde`, `clap`, `signal-hook`, poll primitive), `Interfaces` node skeleton
+- [x] P-008 G2: `Design` node (architecture, serial `poll(2)` trade-off, safety and privacy
+      models, device-I/O seam), `DEPENDENCIES.md` trust path (`evdev`, `nix`, `x11rb`,
+      `toml`, `serde`, `serde_json`, `clap`, `jiff`; poll primitive), `Interfaces` node skeleton
       (seven classes), reference machine and workload named, ESC-SRS-079/080 declared with
       them, `COMPLIANCE.md` rows (`rust-toolchain.toml`, §13, §3.3 PQC) and gate record;
       signed tag — ESC-SRS-089 (draft)
@@ -171,7 +171,7 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 
 - [ ] P-038 Budget gates: `tools/latency-gate.nu` (uinput loopback, p99 ≤ 1 ms, `taskset -c
       0,1`), `tools/rss-gate.nu` (≤ 8 MiB), binary-size row declared; margins and bands in
-      `doc/budgets.md` — ESC-SRS-079, 080
+      `doc/budgets.md` — ESC-SRS-079, 080, 103, 104
 - [ ] P-039 Fuzzing: `cargo-fuzz` targets for the config parser and the `--map` grammar,
       10⁷ executions recorded, corpora committed, `fuzz.yml` — ESC-SRS-081, 082
 - [ ] P-040 Coverage ≥ 80 % (`cargo llvm-cov`) and `cargo mutants` triage

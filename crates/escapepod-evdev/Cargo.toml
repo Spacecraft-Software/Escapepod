@@ -20,3 +20,5 @@ workspace = true
 
 [dependencies]
 escapepod-core.workspace = true
+evdev.workspace = true
+nix.workspace = true

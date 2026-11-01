@@ -16,7 +16,8 @@
 # status:    draft | baselined | implemented | verified | withdrawn (§20.3)
 # verification: optional detail of how the method is applied
 #
-# Baseline: G1, 2026-11-01 (COMPLIANCE.md, "Gate records").
+# Baseline: G1, 2026-11-01; ESC-SRS-103 and 104 added at G2, 2026-11-01
+# (COMPLIANCE.md, "Gate records").
 
 [[requirement]]
 id = "ESC-SRS-001"
@@ -1146,3 +1147,26 @@ status = "baselined"
 source = "Standard §21.5, §25.3"
 statement = "Each of the three package definitions shall install a working daemon in a clean environment before the release tag is pushed."
 rationale = "Validation from installed packaging."
+
+[[requirement]]
+id = "ESC-SRS-103"
+title = "Binary size budget"
+milestone = "M6"
+priority = "mandatory"
+method = "test"
+status = "baselined"
+source = "Standard §22.1"
+statement = "The stripped release `escapepod` binary shall be no larger than 6 MiB."
+rationale = "A resident daemon ships small and is cheap to audit; added at G2 (§22.2 budgets are declared before the code)."
+
+[[requirement]]
+id = "ESC-SRS-104"
+title = "Cold-start budget"
+milestone = "M6"
+priority = "mandatory"
+method = "test"
+verification = "benchmark"
+status = "baselined"
+source = "Standard §22.1"
+statement = "The `escapepod config check` command shall complete within 50 ms on the reference machine with a warm page cache."
+rationale = "Configuration is checked often while editing it; added at G2 (§22.2 budgets are declared before the code)."

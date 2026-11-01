@@ -1,0 +1,254 @@
+@c SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+@c SPDX-License-Identifier: CC-BY-SA-4.0
+
+@node Design
+@chapter Design
+@cindex design
+
+This chapter is the design record of gate G2 (Standard §19.4): the
+architecture, the concurrency decision and its trade-off (§3.2), the safety
+and privacy models, the resource budgets (§22) and the choices the
+requirements leave open.  The requirements say what; this chapter says how,
+and may change without them.
+
+@menu
+* Architecture::        Crates and data flow.
+* Concurrency::         One thread, one poll(2), and why.
+* Engine design::       The pass-through tap/hold state machine.
+* Sessions and ledger:: Many devices, one virtual keyboard.
+* Safety model::        How the keyboard is never lost.
+* Device handling::     Discovery, grab, hotplug and the I/O seam.
+* Privacy model::       Where key data may go.
+* Screen readers::      Orca modifier discovery.
+* X11 design::          The fallback backend.
+* Budgets::             Ceilings, workload and initial margins.
+@end menu
+
+@node Architecture
+@section Architecture
+
+@example
+ keyboards --grab--+                          +--> uinput virtual keyboard
+ pointers  --read--+--> escapepod-evdev --+   |
+ inotify, signals -+                      |   |
+                                          v   |
+                     escapepod-core: Session (engines, ledger, chord)
+                                          |
+                                          +--> status socket (redacted)
+
+ X11:  RECORD --> escapepod-x11 --> Engine --> XTEST (tap key only)
+@end example
+
+@table @code
+@item escapepod-core
+The engine and the multi-device session.  Pure: no I/O, no clock, no
+threads, no dependencies.  Time arrives as a monotonic microsecond count, so
+every decision replays in a test.
+@item escapepod-evdev
+Device discovery from sysfs, the exclusive grab, the uinput device and
+hotplug.  The only crate that opens @file{/dev/input} or @file{/dev/uinput}.
+@item escapepod-x11
+The X RECORD observer and the XTEST injector.
+@item escapepod
+The binary: command line, configuration, diagnostics, the @code{poll(2)}
+loop, signals and the status socket.
+@end table
+
+@node Concurrency
+@section Concurrency
+@cindex concurrency trade-off
+
+The daemon is @strong{serial by design}.  One thread runs one
+@code{poll(2)} over every device descriptor, the inotify descriptor, a
+@code{signalfd} and the status socket.  The trade-off (Standard §3.2):
+
+@itemize
+@item The workload is a few events per keystroke at human rates, each
+costing microseconds of engine work.  There is nothing to parallelise.
+@item Modifier state is global across keyboards: a Control held on one
+keyboard modifies a key on another.  Threads per device would need a shared
+lock on that state and could reorder events between devices, which is a
+correctness fault, not a slowdown.
+@item Pass-through tapping needs no timer: the tap is decided on release.
+With no timeout the daemon sleeps in @code{poll(2)} until input arrives
+(ESC-SRS-057).
+@end itemize
+
+The decision is measured against the latency budget (ESC-SRS-079) and is
+revisited only if that budget fails.  No async runtime is used.
+
+@node Engine design
+@section Engine design
+
+@code{Engine::step(input, now, out)} consumes one input and appends the
+outputs to a caller-owned buffer, so the hot path does not allocate once
+the buffer has grown.  For a key event of key @var{k}:
+
+@enumerate
+@item If @var{k} is protected, the event passes unchanged.
+@item If @var{k} is a dual-role key: a press records the press time, marks
+every other held dual-role key used and emits the hold key's press at once;
+an autorepeat emits the hold key's autorepeat and marks nothing; a release
+emits the hold key's release and then, if the key is not used and the
+release came no later than the tap timeout, one press and one release of
+the tap key.
+@item If @var{k} is a remap source, the same event is emitted for the
+target.
+@item Otherwise the event passes unchanged.
+@end enumerate
+
+Any press of a key other than the dual-role key itself, and any pointer
+button press, marks every held dual-role key used.  The engine never
+buffers or delays an event.  The rule ``protected beats dual-role beats
+remap beats pass-through'' is checked when the rules are built, so an
+ambiguous configuration is rejected rather than resolved silently.
+
+The emergency chord is tracked over the physical keys of every device by a
+separate @code{Chord} type, so a broken mapping cannot hide it.
+
+@node Sessions and ledger
+@section Sessions and ledger
+
+Each grabbed device has its own @code{Engine}, because rules may differ
+per device (ESC-SRS-034).  A @code{Session} owns the engines, the chord
+tracker and the held-keys ledger, and routes events:
+
+@itemize
+@item A press on one device is also shown to every other engine as a
+foreign press, so a dual-role key on a laptop is used by a key on an
+external keyboard.
+@item Every output passes through the @dfn{held-keys ledger}, which
+counts, per key, how many devices hold it down on the virtual keyboard.
+A press reaches uinput only when the count goes from 0 to 1, a release only
+when it returns to 0, so two keyboards holding Control produce one Control.
+@item The ledger also records which device holds which key, so removing or
+faulting one device releases exactly that device's keys (ESC-SRS-052,
+ESC-SRS-050), and @code{release_all} empties it on every exit path.
+@end itemize
+
+@node Safety model
+@section Safety model
+@cindex safety model
+
+@enumerate
+@item @strong{Output before grab.}  The uinput device is created and
+announced before any keyboard is opened for a grab.  If it cannot be
+created the daemon exits with code 4 and has grabbed nothing (ESC-SRS-043).
+@item @strong{Grab when idle.}  Before taking a device's grab, the daemon
+waits, up to 1 s, for the device to report no key down.  A key held at the
+moment of the grab would otherwise have its press seen by the session and
+its release lost to the grab, leaving a stuck key in the compositor.
+@item @strong{Every exit releases.}  @code{SIGTERM} and @code{SIGINT}
+arrive on the @code{signalfd}; the loop releases the ledger and syncs
+before returning.  A panic unwinds (the release profile keeps
+@code{panic = "unwind"}), and a drop guard on the virtual device releases
+the ledger during the unwind.  Device removal and read errors release that
+device's keys.  If the process is killed outright, the kernel drops every
+grab when the descriptors close.
+@item @strong{Emergency chord.}  Backspace, Escape and Enter held together
+(configurable) release every key and every grab and exit with code 6,
+which the service unit does not restart on.
+@item @strong{Never read our own output.}  The virtual device carries a
+fixed name prefix, @samp{Escape Pod virtual keyboard}, and Escape Pod's
+own vendor and product identifiers; a device matching either is never
+opened, whichever process created it (ESC-SRS-045).
+@item @strong{Reload keeps grabs.}  A @code{SIGHUP} validates the new
+configuration first.  A still-matched device keeps its descriptor and grab
+and gets a fresh engine after its keys are released; only devices the new
+configuration no longer matches are released.
+@end enumerate
+
+@node Device handling
+@section Device handling
+
+@strong{Discovery without device access.}  Devices are found from sysfs,
+@file{/sys/class/input/event@var{N}/device/}: the name, the vendor and
+product identifiers and the key capability bitmap.  This needs no read
+access to any event device, which is what @code{device list} relies on
+(ESC-SRS-036).  A device is a keyboard when it reports @code{KEY_A} to
+@code{KEY_Z} and Enter; a pointer when it reports @code{BTN_LEFT}.
+
+@strong{Hotplug.}  An inotify watch on @file{/dev/input} reports new
+@file{event*} nodes (@code{IN_CREATE}) and permission changes made by udev
+(@code{IN_ATTRIB}); a node that could not be opened at creation is retried
+on its attribute change.  This replaces the @code{udev} crate named in the
+PRD: it needs no C library, adds no dependency (@code{nix} already carries
+inotify), and meets the 1 s hotplug requirement (ESC-SRS-051), because udev
+applies the rule's permissions before announcing the device.
+
+@strong{The I/O seam.}  @code{escapepod-evdev} exposes the operations the
+loop needs (open, grab, fetch events, key state, emit, sync) behind small
+traits, so the session logic is tested against fakes and the real path is
+tested end to end by a uinput loopback keyboard behind the
+@code{hardware-tests} feature.
+
+@strong{Poll primitive.}  @code{nix::poll}, since @code{evdev} already
+links @code{nix} 0.29; no second syscall crate enters the graph.
+
+@node Privacy model
+@section Privacy model
+@cindex privacy model
+
+@itemize
+@item Only the @samp{escapepod} system account can read event devices and
+write @file{/dev/uinput}; the udev rule grants that group alone, and no
+login account is added to @samp{input}.
+@item Key data leaves the process only through the virtual device and the
+status socket (ESC-SRS-058).  Diagnostics name managed keys and devices,
+never an unmanaged key code.
+@item The status socket is mode @samp{0660}, group @samp{escapepod-ctl}:
+reading status never grants device access.  It carries managed keys and
+the engine's decisions; every other key is @samp{other}.
+@item @code{event monitor --all-keys} reads devices itself and so can show
+no more than its caller could already read, and it refuses to run off a
+terminal or under an agent.
+@end itemize
+
+@node Screen readers
+@section Screen readers
+@cindex Orca
+
+Orca keeps its modifier keys in its settings file,
+@file{$XDG_DATA_HOME/orca/user-settings.conf} (JSON), under
+@code{general.orcaModifierKeys} and under each profile's
+@code{orcaModifierKeys}, as X keysym names such as @samp{Insert},
+@samp{KP_Insert} or, for the laptop layout, @samp{Caps_Lock}.  A session
+run reads that file; every named key that the configuration maps becomes
+protected, with a warning naming it (ESC-SRS-038, ESC-SRS-093).  A missing
+or unreadable file means no Orca modifier.  A service run reads no user's
+files and protects nothing on Orca's behalf; the manual tells Orca users to
+run a session daemon.  Orca versions that keep the setting only in dconf
+are not read; that gap is recorded as a known limitation.
+
+@node X11 design
+@section X11 design
+
+The X11 backend observes key and button events through a RECORD context
+on a second connection and injects through XTEST.  RECORD cannot suppress
+an event, so the physical key already reaches clients: the backend injects
+only the tap key's press and release (ESC-SRS-088) and rejects any remap,
+and any dual-role key whose hold key differs from the physical key, with
+exit code 2 and a @command{setxkbmap -option} hint.  Its own injected
+events come back through RECORD; the backend counts what it injected and
+skips that many matching events.  X keycodes are evdev codes plus 8.
+
+@node Budgets
+@section Budgets
+@cindex budgets
+@cindex reference workload
+
+Declared at G2, before the code that consumes them (§22.2).  The reference
+machine is defined under @ref{Terminology}.  The @dfn{reference workload}
+is 1000 taps of the dual-role key, 1000 Control chords and 10 000
+pass-through keystrokes, injected through a uinput source keyboard at
+20 ms spacing, with the daemon pinned by @command{taskset -c 0,1}.  The
+initial margins are estimates from the design; measured margins replace
+them at G3.
+
+@multitable @columnfractions .30 .20 .22 .28
+@headitem Resource @tab Ceiling @tab Estimate @tab Initial margin
+@item Added latency, p99 (ESC-SRS-079) @tab 1 ms @tab 0.1 ms @tab 90% (green)
+@item Peak RSS (ESC-SRS-080) @tab 8 MiB @tab 3 MiB @tab 62% (green)
+@item Stripped binary (ESC-SRS-103) @tab 6 MiB @tab 3 MiB @tab 50% (green)
+@item Cold start of @code{config check} (ESC-SRS-104) @tab 50 ms @tab 5 ms @tab 90% (green)
+@end multitable

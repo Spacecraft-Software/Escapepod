@@ -674,5 +674,17 @@ Each of the three package definitions shall install a working daemon in a clean 
 
 Rationale: Validation from installed packaging.  Source: Standard §21.5, §25.3.  Method: test.  Priority: mandatory.  Status: baselined.
 
+@item ESC-SRS-103 @emph{Binary size budget}
+@anchor{ESC-SRS-103}
+The stripped release @code{escapepod} binary shall be no larger than 6 MiB.
+
+Rationale: A resident daemon ships small and is cheap to audit; added at G2 (§22.2 budgets are declared before the code).  Source: Standard §22.1.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-104 @emph{Cold-start budget}
+@anchor{ESC-SRS-104}
+The @code{escapepod config check} command shall complete within 50 ms on the reference machine with a warm page cache.
+
+Rationale: Configuration is checked often while editing it; added at G2 (§22.2 budgets are declared before the code).  Source: Standard §22.1.  Method: test (benchmark).  Priority: mandatory.  Status: baselined.
+
 @end table
 

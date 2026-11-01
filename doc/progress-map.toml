@@ -168,7 +168,7 @@ requirements = ["ESC-SRS-078", "ESC-SRS-089"]
 
 [[plan]]
 id = "P-038"
-requirements = ["ESC-SRS-079", "ESC-SRS-080"]
+requirements = ["ESC-SRS-079", "ESC-SRS-080", "ESC-SRS-103", "ESC-SRS-104"]
 
 [[plan]]
 id = "P-039"
@@ -190,3 +190,7 @@ requirements = ["ESC-SRS-087"]
 id = "P-043"
 rule = "landed"
 reason = "Registry rows in the Projects repository"
+
+[[plan]]
+id = "P-044"
+requirements = ["ESC-SRS-042"]

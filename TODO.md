@@ -64,15 +64,15 @@ when that test passes. Identifiers are permanent.
       fixture with an unknown id and a markerless `verified` row
 - [x] T-023 P-007 `tools/progress.nu` + `doc/progress-map.toml` mapping `P-`/`T-` items to
       requirements; prints the full §17.1 block
-- [ ] T-024 P-008 `Design` node in the manual: architecture, serial trade-off (§3.2),
+- [x] T-024 P-008 `Design` node in the manual: architecture, serial trade-off (§3.2),
       safety model, privacy model, device-I/O seam, poll primitive choice
-- [ ] T-025 P-008 `DEPENDENCIES.md` trust-path rows (eight §24.1 fields each)
-- [ ] T-026 P-008 `Interfaces` node skeleton: seven classes, identity/version/stability
+- [x] T-025 P-008 `DEPENDENCIES.md` trust-path rows (eight §24.1 fields each)
+- [x] T-026 P-008 `Interfaces` node skeleton: seven classes, identity/version/stability
       per interface, `schemas/` directory
-- [ ] T-027 P-008 Terminology: reference machine (ThinkPad T490s, i7-8665U, 32 GiB, NVMe,
+- [x] T-027 P-008 Terminology: reference machine (ThinkPad T490s, i7-8665U, 32 GiB, NVMe,
       NixOS 26.05) and workload (`taskset -c 0,1`, committed input script);
       ESC-SRS-079/080 text updated via TOML
-- [ ] T-028 P-008 `COMPLIANCE.md`: §13 N/A, §3.3 PQC N/A, gate record G2; signed tag
+- [x] T-028 P-008 `COMPLIANCE.md`: §13 N/A, §3.3 PQC N/A, gate record G2; signed tag
       `g2-design-0.1`
 
 ## M1 — Tap/hold engine
@@ -199,7 +199,7 @@ when that test passes. Identifiers are permanent.
 - [ ] T-096 P-038 `tools/latency-gate.nu` and the reference workload script
       (`ESC-SRS-079`)
 - [ ] T-097 P-038 `tools/rss-gate.nu`, `tools/size-gate.nu`; `doc/budgets.md` with bands
-      (`ESC-SRS-080`)
+      (`ESC-SRS-080, 103, 104`)
 - [ ] T-098 P-039 `fuzz/` targets `config_parse`, `map_parse`; 10⁷ executions recorded
       (`ESC-SRS-081, 082`)
 - [ ] T-099 P-040 `cargo llvm-cov` ≥ 80 % in CI (`ESC-SRS-083`)

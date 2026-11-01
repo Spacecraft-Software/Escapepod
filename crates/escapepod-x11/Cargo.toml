@@ -20,3 +20,4 @@ workspace = true
 
 [dependencies]
 escapepod-core.workspace = true
+x11rb.workspace = true
