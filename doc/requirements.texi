@@ -256,7 +256,7 @@ Rationale: Discovery must not need keylogging rights.  Source: ESC-NEED-004.  Me
 
 @item ESC-SRS-037 @emph{Run confirmation}
 @anchor{ESC-SRS-037}
-When standard output is not a terminal, or the process runs in an agent environment, the @code{daemon run} command shall exit with code 2 unless @code{--yes} is given.
+When standard output is not a terminal, or the process runs in an agent environment, the @code{daemon run} command without @code{--dry-run} shall exit with code 2 unless @code{--yes} is given.
 
 Rationale: An agent must not grab the keyboard by accident.  Source: ESC-NEED-003; agentic CLI §7.  Method: test.  Priority: mandatory.  Status: baselined.
 
