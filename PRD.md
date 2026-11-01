@@ -149,14 +149,14 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M0 — Foundation and compliance
 
-- [ ] ESC-SRS-001 `reuse lint` passes
-- [ ] ESC-SRS-002 Posture files at repository root
-- [ ] ESC-SRS-003 Agent context files at repository root
-- [ ] ESC-SRS-004 Category B declared in all three places
-- [ ] ESC-SRS-005 `SECURITY.md` present
-- [ ] ESC-SRS-006 `COMPLIANCE.md` tailoring register present
-- [ ] ESC-SRS-007 CI gates fmt, clippy, tests, audit, deny
-- [ ] ESC-SRS-008 LF / UTF-8 text files enforced in CI
+- [x] ESC-SRS-001 `reuse lint` passes
+- [x] ESC-SRS-002 Posture files at repository root
+- [x] ESC-SRS-003 Agent context files at repository root
+- [x] ESC-SRS-004 Category B declared in all three places
+- [x] ESC-SRS-005 `SECURITY.md` present
+- [x] ESC-SRS-006 `COMPLIANCE.md` tailoring register present
+- [x] ESC-SRS-007 CI gates fmt, clippy, tests, audit, deny
+- [x] ESC-SRS-008 LF / UTF-8 text files enforced in CI
 
 
 ## M1 — Tap/hold engine

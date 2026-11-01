@@ -25,7 +25,13 @@ a fault can leave the user unable to type. Tailoring is in `COMPLIANCE.md`.
 Enter the pinned toolchain first: `nix develop`. The flake pins rustc through
 `flake.lock`, and the MSRV is `rust-version` in `Cargo.toml`.
 
-- Full local gate (mirrors CI; run before every PR): `nu tools/ci.nu`
+- Full local gate (mirrors CI; run before every PR): `nu tools/ci.nu`.
+  One gate: `nu tools/ci.nu --only clippy`; names: `nu tools/ci.nu --list`.
+  The workflow calls the same gates, so add a gate to both in one PR.
+- Traceability matrix: `nu tools/trace.nu` (`--release` at G3, `--json`)
+- Progress block (§17.1): `nu tools/progress.nu`
+- Requirements chapter: edit `doc/requirements.toml`, then `nu tools/srs.nu`
+- Manual: `make -C doc` (`make` comes from `nix develop`)
 - Build: `cargo build --locked`
 - Test: `cargo test --workspace --locked`
 - Lint: `cargo clippy --all-targets --all-features --locked -- -D warnings`
@@ -85,11 +91,14 @@ Enter the pinned toolchain first: `nix develop`. The flake pins rustc through
 
 ## Requirements and traceability
 
-Requirements are `ESC-SRS-nnn` in the manual's `Requirements` node and, from
-G1, in `doc/requirements.toml`. Mark evidence in code with `Verifies:
-ESC-SRS-nnn` on tests and `Implements: ESC-SRS-nnn` on the implementing item.
-Never change a requirement's text from code work. Change the TOML in its own
-PR.
+Requirements are `ESC-SRS-nnn` in `doc/requirements.toml` (baselined at G1),
+rendered into the manual's `Requirements` node. Mark evidence with `Verifies:
+ESC-SRS-nnn` on tests and gates and `Implements: ESC-SRS-nnn` on the
+implementing item. A requirement moves to `verified` in the PR that lands its
+passing `Verifies:` evidence, and its `PRD.md` item is ticked in the same PR;
+`tools/progress.nu` fails when the two disagree. Never change a requirement's
+text from code work: change it in its own PR, which re-enters gate G1.
+Inspections are recorded under `doc/records/`.
 
 ## Environment expectations
 

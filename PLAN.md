@@ -44,23 +44,23 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
       chapter into `doc/requirements.toml` (id, title, text, rationale, source, method,
       priority, status, milestone); `tools/srs.nu` renders `doc/requirements.texi`,
       `@include`d by `doc/escapepod.texi`; statuses `draft → baselined`; signed tag
-- [ ] P-002 Posture set: `README.md` (posture, Category B, §19.6 claim, §13 N/A),
+- [x] P-002 Posture set: `README.md` (posture, Category B, §19.6 claim, §13 N/A),
       `NOTICE.md`, `CONTRIBUTING.md`, `LICENSE` + `LICENSES/GPL-3.0-or-later.txt` symlink,
       `LICENSES/CC-BY-SA-4.0.txt`, `REUSE.toml`, `SECURITY.md`, `CREDITS.md` (xcape, ISO
       29148, ECSS); `reuse lint` clean — ESC-SRS-001, 002, 004, 005, 006
-- [ ] P-003 Agent context: `AGENTS.md` (authoritative), `CLAUDE.md` (`@AGENTS.md` + Claude-only),
+- [x] P-003 Agent context: `AGENTS.md` (authoritative), `CLAUDE.md` (`@AGENTS.md` + Claude-only),
       `SKILL.md` (CLI capability surface) — ESC-SRS-003, 004
-- [ ] P-004 Text format: `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`, index CRLF
+- [x] P-004 Text format: `.gitattributes` (`* text=auto eol=lf`), `.editorconfig`, index CRLF
       gate — ESC-SRS-008
 - [ ] P-005 Workspace skeleton: `Cargo.toml` (crates `escapepod-core`, `escapepod-evdev`,
       `escapepod-x11`, `escapepod`; edition 2024; release profile with every flag noted),
       `clippy.toml`, `rustfmt.toml`, `deny.toml`, `.cargo/audit.toml`, `flake.nix` devShell
       (rustc, cargo-audit/deny/nextest/mutants/llvm-cov/cyclonedx/bloat, hyperfine, reuse,
       texinfo, nushell, Xvfb), `flake.lock` as the toolchain pin — ESC-SRS-007 (tooling), 021
-- [ ] P-006 CI: `.github/workflows/ci.yml` (fmt, clippy `-D warnings`, test, audit, deny,
+- [x] P-006 CI: `.github/workflows/ci.yml` (fmt, clippy `-D warnings`, test, audit, deny,
       REUSE, CRLF, posture set, manual build, SRS freshness, trace) and `tools/ci.nu` running
       the same gates locally — ESC-SRS-007, 008
-- [ ] P-007 Traceability: `tools/trace.nu` (markers `Verifies:`/`Implements:` → matrix; fails
+- [x] P-007 Traceability: `tools/trace.nu` (markers `Verifies:`/`Implements:` → matrix; fails
       on unknown id or `implemented`/`verified` without marker; `--release` orphans; emits the
       §17.1 block) and `tools/progress.nu` (TODO/PLAN rows via `doc/progress-map.toml`) —
       ESC-SRS-085 (verified at M6)

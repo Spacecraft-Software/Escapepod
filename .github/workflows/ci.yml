@@ -1,0 +1,101 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# CI for Escape Pod (PLAN P-006). Every gate is run through the local mirror,
+# `nu tools/ci.nu --only <gate>`, so this file and the mirror cannot drift.
+# The gate set is ESC-SRS-007 (fmt, clippy, test, audit, deny) and ESC-SRS-008
+# (no CR byte in the index), plus posture, REUSE, the SRS freshness check,
+# the manual and the traceability matrix.
+#
+# Toolchain: two pins, two figures (Standard §24.2; COMPLIANCE.md).
+#   RUST_TOOLCHAIN 1.98.1, the rustc that flake.lock's nixpkgs provides, so CI
+#     and `nix develop` compile with one compiler.
+#   RUST_MSRV 1.88.0, rust-version in Cargo.toml, checked by the msrv job.
+# Every cargo step runs --locked: Cargo.lock is the baseline.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_TOOLCHAIN: "1.98.1"
+  RUST_MSRV: "1.88.0"
+  NU_VERSION: "0.112.2"
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: fmt · clippy · test · doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ env.NU_VERSION }}
+      - name: udev headers for the evdev crate
+        run: sudo apt-get update -q && sudo apt-get install -y -q libudev-dev pkg-config
+      - run: nu tools/ci.nu --only fmt,clippy,test,doc
+
+  supply-chain:
+    name: audit · deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ env.NU_VERSION }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+      - run: nu tools/ci.nu --only audit,deny
+
+  posture:
+    name: posture · REUSE · CRLF · trace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ env.NU_VERSION }}
+      - name: reuse
+        run: pipx install reuse
+      - run: nu tools/ci.nu --only posture,category,crlf,skill,reuse,srs,tools,trace,progress
+
+  docs:
+    name: manual (Info, HTML, PDF)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ env.NU_VERSION }}
+      - name: Texinfo and TeX
+        run: sudo apt-get update -q && sudo apt-get install -y -q texinfo texlive-base texlive-plain-generic
+      - run: nu tools/ci.nu --only manual
+      - name: PDF
+        run: make -C doc pdf
+
+  msrv:
+    name: MSRV check and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: rust-version in Cargo.toml is the MSRV this job tests
+        run: grep -q "^rust-version = \"$RUST_MSRV\"" Cargo.toml
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_MSRV }}
+      - name: udev headers for the evdev crate
+        run: sudo apt-get update -q && sudo apt-get install -y -q libudev-dev pkg-config
+      - run: cargo check --workspace --all-targets --locked
+      - run: cargo test --workspace --locked
