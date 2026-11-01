@@ -52,6 +52,12 @@ and `PROJECTS.md` (ESC-SRS-004).
 
 No requirement was withdrawn. The baseline is the commit tagged `g1-requirements-0.1`.
 
+**Re-entry, 2026-11-01 (before M2 code).** ESC-SRS-037 and ESC-SRS-039 contradicted each other for
+`daemon run --dry-run` off a terminal: 037 demanded exit 2 without `--yes`, 039 exit 0. A dry run
+grabs nothing (ESC-SRS-094), so the guard has nothing to protect: 037 now reads "the `daemon run`
+command without `--dry-run`". Characteristic failed: *Consistent* (set). No other requirement
+changed.
+
 ### G2 — Design (2026-11-01)
 
 | Evidence | Where |

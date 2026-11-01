@@ -468,7 +468,7 @@ priority = "mandatory"
 method = "test"
 status = "baselined"
 source = "ESC-NEED-003; agentic CLI §7"
-statement = "When standard output is not a terminal, or the process runs in an agent environment, the `daemon run` command shall exit with code 2 unless `--yes` is given."
+statement = "When standard output is not a terminal, or the process runs in an agent environment, the `daemon run` command without `--dry-run` shall exit with code 2 unless `--yes` is given."
 rationale = "An agent must not grab the keyboard by accident."
 
 [[requirement]]
