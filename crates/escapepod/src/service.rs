@@ -206,6 +206,7 @@ enum Ready {
 pub fn run(
     cfg: Config,
     backend: BackendArg,
+    only_device: Option<(u16, u16)>,
     mode: &Mode,
     io: &mut Io<'_>,
     reload: &dyn Fn() -> Result<Config, AppError>,
@@ -223,6 +224,18 @@ pub fn run(
         io.env.var("DISPLAY").is_some(),
     ) {
         Selected::X11 => {
+            if cfg.has_buttons() {
+                return Err(AppError::invalid(
+                    "the X11 backend cannot suppress mouse buttons",
+                    "escapepod daemon run --backend evdev --dry-run",
+                ));
+            }
+            if only_device.is_some() {
+                return Err(AppError::invalid(
+                    "--only-device requires the evdev backend",
+                    "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
+                ));
+            }
             if backend == BackendArg::Auto {
                 mode.diag(
                     io.err,
@@ -248,8 +261,21 @@ pub fn run(
         Selected::Evdev => {}
     }
     // The virtual keyboard is created before any device is opened.
-    let sink = UinputKeyboard::create().map_err(|e| no_uinput(&e))?;
-    evdev_loop(Daemon::new(EvdevOpener, sink, cfg), mode, io, reload)
+    let mut sink = UinputKeyboard::create().map_err(|e| no_uinput(&e))?;
+    sink.enable_pointer().map_err(|e| {
+        AppError::new(
+            "BACKEND_UNAVAILABLE",
+            Exit::Permission,
+            format!("cannot create the virtual pointer: {e}; no device was grabbed"),
+            "human: give the escapepod account write access to /dev/uinput (manual: Service)",
+        )
+    })?;
+    evdev_loop(
+        Daemon::new(EvdevOpener, sink, cfg).restrict_devices(only_device),
+        mode,
+        io,
+        reload,
+    )
 }
 
 /// The backend `daemon run` uses.
@@ -286,7 +312,7 @@ pub fn select(
 /// reading (opened and closed at once; never grabbed).
 fn any_keyboard_readable(cfg: &Config, env: &Env) -> bool {
     app::scan_devices(env).unwrap_or_default().iter().any(|d| {
-        d.kind == DeviceKind::Keyboard
+        (d.kind == DeviceKind::Keyboard || d.kind == DeviceKind::Pointer && cfg.has_buttons())
             && !d.is_own()
             && cfg.rules_for(d).is_some()
             && std::fs::File::open(&d.path).is_ok()

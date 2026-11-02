@@ -8,6 +8,7 @@
 @example
 escapepod daemon run [--map @var{MAP}] [--tap-timeout @var{MS}]
                      [--backend auto|evdev|x11] [--yes] [--dry-run]
+                     [--only-device VVVV:PPPP]
 escapepod daemon status [--socket @var{PATH}]
 escapepod event monitor [--all-keys] [--map @var{MAP}]
 escapepod device list
@@ -34,6 +35,11 @@ Creates the virtual keyboard, grabs every matched keyboard once no key is
 down on it, and applies the mapping until it receives @code{SIGTERM} or
 @code{SIGINT}.  @code{SIGHUP} reloads the configuration.  Off a terminal or
 under an AI agent it needs @option{--yes}.
+@option{--only-device} limits device access to a hexadecimal vendor and
+product pair, such as @code{1234:5678}.  The restriction also applies after
+hotplug and reload.  Identical devices may share these identifiers, so this
+does not distinguish individual units.  This option requires the evdev
+backend; X11 cannot enforce it.
 @item daemon status
 Asks the running daemon for its devices and the number of keys it holds.
 @item event monitor
@@ -147,6 +153,35 @@ AF_NETLINK}) and does not restart after the emergency chord.  It reads no
 user's files, so it cannot see an Orca setting: Orca users should run a
 session daemon instead (@code{escapepod daemon run} from the session) or
 list Orca's modifier key under @code{protected}.
+
+@section Mouse side buttons
+
+On the evdev backend, map a mouse button to an ordered shortcut:
+
+@example
+[[device]]
+id = "1234:5678"
+[[device.button]]
+button = "BTN_SIDE"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_RIGHT"]
+[[device.button]]
+button = "BTN_EXTRA"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_LEFT"]
+@end example
+
+Replace the identifier with the mouse's value from @code{device list}.
+Each shortcut has one to eight distinct keyboard keys.  Its keys go down
+in list order and come up in reverse order when the button is released.
+Global @code{[[button]]} rules also work; a per-device list replaces them.
+
+Matched relative mice are grabbed once their buttons are up.  Motion,
+wheels and unmapped buttons pass through the virtual pointer.  Devices
+with unsupported capabilities, such as absolute touchpads, are left
+ungrabbed with a diagnostic.  X11 rejects button rules.
+
+When migrating from xremap, validate the configuration first, stop xremap,
+then start Escape Pod.  Remove the xremap ignore rule after xremap has been
+removed.  Keep only one remapper grabbing the physical devices.
 
 @node Troubleshooting
 @chapter Troubleshooting

@@ -6,7 +6,11 @@
 # service comes up as the escapepod account, the udev rule grants access,
 # a uinput fixture keyboard is grabbed and tapped, the status socket answers
 # a member of escapepod-ctl, and the emergency chord exits 6 with no restart.
-{ pkgs, module, package }:
+{
+  pkgs,
+  module,
+  package,
+}:
 
 pkgs.testers.runNixOSTest {
   name = "escapepod";
@@ -20,6 +24,19 @@ pkgs.testers.runNixOSTest {
       settings = {
         grab = "listed";
         device = [
+          {
+            id = "5350:5446";
+            button = [
+              {
+                button = "BTN_SIDE";
+                keys = [
+                  "KEY_LEFTMETA"
+                  "KEY_LEFTCTRL"
+                  "KEY_RIGHT"
+                ];
+              }
+            ];
+          }
           {
             id = "5350:5445";
             dual_role = [
@@ -66,6 +83,39 @@ pkgs.testers.runNixOSTest {
     """
     machine.succeed("cat > /tmp/fixture.py <<'PY'\n" + fixture + "\nPY")
 
+    mouse_fixture = """
+    import errno, time, evdev
+    from evdev import ecodes as e, UInput
+    ui = UInput({e.EV_KEY: [e.BTN_LEFT, e.BTN_SIDE], e.EV_REL: [e.REL_X, e.REL_Y]}, name="vm-mouse", vendor=0x5350, product=0x5446, max_effects=0)
+    print(ui.device.capabilities(), flush=True)
+    time.sleep(1.5)
+    outputs = list(map(evdev.InputDevice, evdev.list_devices()))
+    keyboard = next(d for d in outputs if d.name.startswith("Escape Pod virtual keyboard"))
+    pointer = next(d for d in outputs if d.name.startswith("Escape Pod virtual pointer"))
+    keyboard.grab()
+    pointer.grab()
+    try:
+        ui.device.grab()
+    except OSError as error:
+        assert error.errno == errno.EBUSY, error
+    else:
+        raise AssertionError("mouse was not grabbed")
+    for kind, code, value in [(e.EV_KEY, e.BTN_SIDE, 1), (e.EV_REL, e.REL_X, 7), (e.EV_KEY, e.BTN_LEFT, 1), (e.EV_KEY, e.BTN_LEFT, 0), (e.EV_KEY, e.BTN_SIDE, 0)]:
+        ui.write(kind, code, value)
+        ui.syn()
+        time.sleep(0.02)
+    time.sleep(0.3)
+    def drain(device):
+        result = []
+        while True:
+            event = device.read_one()
+            if event is None: return result
+            if event.type != e.EV_SYN: result.append((event.type, event.code, event.value))
+    assert drain(keyboard) == [(e.EV_KEY, code, value) for code, value in [(e.KEY_LEFTMETA, 1), (e.KEY_LEFTCTRL, 1), (e.KEY_RIGHT, 1), (e.KEY_RIGHT, 0), (e.KEY_LEFTCTRL, 0), (e.KEY_LEFTMETA, 0)]]
+    assert drain(pointer) == [(e.EV_REL, e.REL_X, 7), (e.EV_KEY, e.BTN_LEFT, 1), (e.EV_KEY, e.BTN_LEFT, 0)]
+    """
+    machine.succeed("cat > /tmp/mouse.py <<'PY'\n" + mouse_fixture + "\nPY")
+
     machine.wait_for_unit("escapepod.service")
     assert machine.succeed("systemctl show -p User --value escapepod").strip() == "escapepod"
     machine.succeed("test -c /dev/uinput && stat -c %G /dev/uinput | grep -qx escapepod")
@@ -74,6 +124,7 @@ pkgs.testers.runNixOSTest {
 
     # A tap through the real kernel path.
     machine.succeed("python3 /tmp/fixture.py >&2")
+    machine.succeed("python3 /tmp/mouse.py >&2")
 
     # The status socket: 0660, group escapepod-ctl, readable by alice.
     machine.succeed("stat -c '%a %G' /run/escapepod/escapepod.sock | grep -qx '660 escapepod-ctl'")

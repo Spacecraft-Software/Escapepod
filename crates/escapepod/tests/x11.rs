@@ -100,7 +100,7 @@ fn record_keys(display: &str) -> mpsc::Receiver<(u8, bool)> {
             if reply.category != 0 {
                 continue;
             }
-            for e in reply.data.chunks_exact(32) {
+            for e in reply.data.as_chunks::<32>().0 {
                 let kind = e[0] & 0x7f;
                 if (kind == 2 || kind == 3) && tx.send((e[1], kind == 2)).is_err() {
                     return;

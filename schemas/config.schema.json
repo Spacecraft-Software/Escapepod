@@ -17,6 +17,18 @@
         "properties": { "key": { "$ref": "#/$defs/key" }, "hold": { "$ref": "#/$defs/key" }, "tap": { "$ref": "#/$defs/key" } }
       }
     },
+    "button": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["button", "keys"],
+        "properties": {
+          "button": { "$ref": "#/$defs/key" },
+          "keys": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } }
+        }
+      }
+    },
     "remap": {
       "type": "array",
       "items": {
@@ -34,6 +46,7 @@
     "protected": { "type": "array", "items": { "$ref": "#/$defs/key" } },
     "dual_role": { "$ref": "#/$defs/dual_role" },
     "remap": { "$ref": "#/$defs/remap" },
+    "button": { "$ref": "#/$defs/button" },
     "device": {
       "type": "array",
       "items": {
@@ -46,7 +59,8 @@
           "ignore": { "type": "boolean" },
           "tap_timeout_ms": { "$ref": "#/$defs/timeout" },
           "dual_role": { "$ref": "#/$defs/dual_role" },
-          "remap": { "$ref": "#/$defs/remap" }
+          "remap": { "$ref": "#/$defs/remap" },
+          "button": { "$ref": "#/$defs/button" }
         }
       }
     }

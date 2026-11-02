@@ -126,10 +126,13 @@ Array of key names never mapped.
 @code{tap}.
 @item [[remap]]
 @code{from}, @code{to}.
+@item [[button]]
+@code{button} (a mouse button name) and @code{keys} (one to eight distinct
+keyboard keys).  Presses follow the list order; releases reverse it.
 @item [[device]]
 Exactly one of @code{name} (the kernel device name) or @code{id}
 (@samp{VVVV:PPPP} in hexadecimal), and optionally @code{ignore},
-@code{tap_timeout_ms}, @code{dual_role} and @code{remap}, which replace the
+@code{tap_timeout_ms}, @code{dual_role}, @code{button} and @code{remap}, which replace the
 global lists for that device.  The first matching rule wins.
 @end table
 
@@ -194,7 +197,7 @@ does not exist.
 UTF-8 JSON Lines, one object per line, compact.
 @item On connect
 The daemon writes one status object: @code{backend}, @code{devices}
-(@code{name}, @code{path}, @code{grabbed}), @code{pointers} (a count) and
+(@code{name}, @code{path}, @code{grabbed}, for keyboards and pointers), @code{pointers} (a count) and
 @code{held} (the number of keys held, never which).  Schema:
 @file{schemas/status.schema.json}.
 @item Subscription

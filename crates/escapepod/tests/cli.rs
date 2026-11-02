@@ -633,6 +633,84 @@ fn dry_run_reports_the_plan_and_grabs_nothing() {
     // have failed the command: the plan came from sysfs alone.
 }
 
+#[test]
+fn only_device_validates_and_limits_dry_run() {
+    let root = scratch("only-device");
+    for invalid in ["1:1", "0001:000g", "0001:0001:0001"] {
+        let output = cmd(&root)
+            .args(["daemon", "run", "--dry-run", "--only-device", invalid])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{invalid}");
+    }
+    let output = cmd(&root)
+        .args([
+            "daemon",
+            "run",
+            "--dry-run",
+            "--only-device",
+            "04f3:002f",
+            "--map",
+            "Caps_Lock=Escape",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let plan = stdout_doc(&output);
+    assert!(
+        plan["data"]["devices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|d| d["status"] != "grab")
+    );
+    let output = cmd(&root)
+        .args([
+            "daemon",
+            "run",
+            "--dry-run",
+            "--backend",
+            "x11",
+            "--only-device",
+            "0001:0001",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+}
+
+#[test]
+// Verifies: ESC-SRS-110
+fn button_configuration_is_visible_and_x11_rejects_it() {
+    let root = scratch("buttons");
+    let config = root.join("buttons.toml");
+    fs::write(
+        &config,
+        "[[button]]\nbutton='BTN_SIDE'\nkeys=['KEY_LEFTCTRL','KEY_RIGHT']\n",
+    )
+    .unwrap();
+    let check = cmd(&root)
+        .args(["config", "check", "--config"])
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    assert_eq!(
+        stdout_doc(&check)["data"]["mappings"]["button"][0]["button"],
+        "BTN_SIDE"
+    );
+    let run = cmd(&root)
+        .args(["daemon", "run", "--yes", "--backend", "x11", "--config"])
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert_eq!(run.status.code(), Some(2));
+}
+
 // Verifies: ESC-SRS-041
 #[test]
 fn schema_is_valid_json_schema_2020_12() {

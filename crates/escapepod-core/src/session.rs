@@ -12,6 +12,12 @@ use crate::{Chord, Decision, Engine, Input, Instant, KeyCode, KeyEvent, KeyValue
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId(pub u32);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Holder {
+    Keyboard(DeviceId),
+    Button(DeviceId, KeyCode),
+}
+
 /// Every key held down on the virtual keyboard, and the devices holding
 /// it.
 ///
@@ -34,26 +40,30 @@ pub struct DeviceId(pub u32);
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HeldKeys {
-    keys: BTreeMap<KeyCode, BTreeSet<DeviceId>>,
+    keys: BTreeMap<KeyCode, BTreeSet<Holder>>,
 }
 
 impl HeldKeys {
     /// Records `ev` from `dev`; returns whether it reaches the virtual
     /// keyboard.
     pub fn apply(&mut self, dev: DeviceId, ev: KeyEvent) -> bool {
+        self.apply_holder(Holder::Keyboard(dev), ev)
+    }
+
+    fn apply_holder(&mut self, holder: Holder, ev: KeyEvent) -> bool {
         match ev.value {
             KeyValue::Press => {
                 let holders = self.keys.entry(ev.key).or_default();
                 let first = holders.is_empty();
-                holders.insert(dev);
+                holders.insert(holder);
                 first
             }
-            KeyValue::Repeat => self.keys.get(&ev.key).is_some_and(|h| h.contains(&dev)),
+            KeyValue::Repeat => self.keys.get(&ev.key).is_some_and(|h| h.contains(&holder)),
             KeyValue::Release => {
                 let Some(holders) = self.keys.get_mut(&ev.key) else {
                     return false;
                 };
-                if !holders.remove(&dev) {
+                if !holders.remove(&holder) {
                     return false;
                 }
                 let last = holders.is_empty();
@@ -71,7 +81,7 @@ impl HeldKeys {
         let mine: Vec<KeyCode> = self
             .keys
             .iter()
-            .filter(|(_, h)| h.contains(&dev))
+            .filter(|(_, h)| h.contains(&Holder::Keyboard(dev)))
             .map(|(&k, _)| k)
             .collect();
         for k in mine {
@@ -132,6 +142,8 @@ pub struct Step {
 #[derive(Clone, Debug, Default)]
 pub struct Session {
     engines: BTreeMap<DeviceId, Engine>,
+    pointers: BTreeMap<DeviceId, Rules>,
+    buttons_down: BTreeSet<(DeviceId, KeyCode)>,
     chord: Chord,
     ledger: HeldKeys,
     scratch: Vec<KeyEvent>,
@@ -143,6 +155,8 @@ impl Session {
     pub fn new(chord: Chord) -> Self {
         Self {
             engines: BTreeMap::new(),
+            pointers: BTreeMap::new(),
+            buttons_down: BTreeSet::new(),
             chord,
             ledger: HeldKeys::default(),
             scratch: Vec::new(),
@@ -224,9 +238,65 @@ impl Session {
         }
     }
 
+    /// Registers a grabbed pointer and its button rules.
+    pub fn add_pointer(&mut self, dev: DeviceId, rules: Rules) {
+        self.pointers.entry(dev).or_insert(rules);
+    }
+
+    /// Handles a pointer button and returns whether a rule consumed it.
+    pub fn on_button(
+        &mut self,
+        dev: DeviceId,
+        ev: KeyEvent,
+        now: Instant,
+        out: &mut Vec<KeyEvent>,
+    ) -> bool {
+        if ev.value == KeyValue::Press {
+            self.on_pointer_press(now);
+        }
+        let Some(keys) = self
+            .pointers
+            .get(&dev)
+            .and_then(|rules| rules.button(ev.key))
+        else {
+            return false;
+        };
+        let holder = Holder::Button(dev, ev.key);
+        match ev.value {
+            KeyValue::Press if self.buttons_down.insert((dev, ev.key)) => {
+                for &key in keys {
+                    let event = KeyEvent::press(key);
+                    if self.ledger.apply_holder(holder, event) {
+                        out.push(event);
+                    }
+                }
+            }
+            KeyValue::Release if self.buttons_down.remove(&(dev, ev.key)) => {
+                for &key in keys.iter().rev() {
+                    let event = KeyEvent::release(key);
+                    if self.ledger.apply_holder(holder, event) {
+                        out.push(event);
+                    }
+                }
+            }
+            _ => {}
+        }
+        true
+    }
+
     /// Removes `dev`, appending the releases of every key it held.
     pub fn remove_device(&mut self, dev: DeviceId, out: &mut Vec<KeyEvent>) {
         self.engines.remove(&dev);
+        let buttons: Vec<KeyCode> = self
+            .buttons_down
+            .iter()
+            .filter(|(id, _)| *id == dev)
+            .map(|(_, key)| *key)
+            .collect();
+        for button in buttons {
+            self.on_button(dev, KeyEvent::release(button), Instant::default(), out);
+        }
+        self.pointers.remove(&dev);
         self.ledger.release_device(dev, out);
         self.chord.clear();
     }
@@ -246,6 +316,7 @@ impl Session {
     /// Releases every held key, appending one release per key.
     pub fn release_all(&mut self, out: &mut Vec<KeyEvent>) {
         self.ledger.release_all(out);
+        self.buttons_down.clear();
     }
 
     /// The held-keys ledger.
@@ -316,6 +387,113 @@ mod tests {
         s.on_pointer_press(t(10));
         s.on_key(A, KeyEvent::release(CAPS), t(30), &mut out);
         assert_eq!(out, [KeyEvent::press(CTRL), KeyEvent::release(CTRL)]);
+    }
+
+    #[test]
+    // Verifies: ESC-SRS-105, ESC-SRS-106
+    fn overlapping_buttons_hold_shared_keys_until_the_last_release() {
+        let first = key("BTN_SIDE");
+        let second = key("BTN_EXTRA");
+        let right = key("KEY_RIGHT");
+        let left = key("KEY_LEFT");
+        let rules = Rules::builder()
+            .button(first, vec![CTRL, right])
+            .button(second, vec![CTRL, left])
+            .build()
+            .unwrap();
+        let mut s = Session::default();
+        s.add_pointer(A, rules);
+        let mut out = Vec::new();
+        assert!(s.on_button(A, KeyEvent::press(first), t(0), &mut out));
+        assert!(s.on_button(A, KeyEvent::press(second), t(1), &mut out));
+        assert!(s.on_button(A, KeyEvent::release(first), t(2), &mut out));
+        assert_eq!(
+            out,
+            [
+                KeyEvent::press(CTRL),
+                KeyEvent::press(right),
+                KeyEvent::press(left),
+                KeyEvent::release(right)
+            ]
+        );
+        s.remove_device(A, &mut out);
+        assert_eq!(
+            out,
+            [
+                KeyEvent::press(CTRL),
+                KeyEvent::press(right),
+                KeyEvent::press(left),
+                KeyEvent::release(right),
+                KeyEvent::release(left),
+                KeyEvent::release(CTRL)
+            ]
+        );
+        assert!(s.held().is_empty());
+    }
+
+    #[test]
+    fn button_shortcuts_reject_duplicates_and_invalid_lengths() {
+        let button = key("BTN_SIDE");
+        Rules::builder().button(button, vec![]).build().unwrap_err();
+        Rules::builder()
+            .button(button, vec![CTRL; 9])
+            .build()
+            .unwrap_err();
+        Rules::builder()
+            .button(button, vec![CTRL, CTRL])
+            .build()
+            .unwrap_err();
+        Rules::builder()
+            .button(button, vec![CTRL])
+            .button(button, vec![ESC])
+            .build()
+            .unwrap_err();
+    }
+
+    #[test]
+    fn keyboard_and_button_share_modifier_until_both_release() {
+        let button = key("BTN_SIDE");
+        let right = key("KEY_RIGHT");
+        let rules = Rules::builder()
+            .button(button, vec![CTRL, right])
+            .build()
+            .unwrap();
+        let mut s = Session::default();
+        s.add_device(A, Rules::default());
+        s.add_pointer(B, rules);
+        let mut out = Vec::new();
+        s.on_key(A, KeyEvent::press(CTRL), t(0), &mut out);
+        s.on_button(B, KeyEvent::press(button), t(1), &mut out);
+        s.on_key(A, KeyEvent::release(CTRL), t(2), &mut out);
+        s.on_button(B, KeyEvent::release(button), t(3), &mut out);
+        assert_eq!(
+            out,
+            [
+                KeyEvent::press(CTRL),
+                KeyEvent::press(right),
+                KeyEvent::release(right),
+                KeyEvent::release(CTRL)
+            ]
+        );
+        assert!(s.held().is_empty());
+    }
+
+    #[test]
+    fn release_all_clears_buttons_and_ignores_late_releases() {
+        let button = key("BTN_SIDE");
+        let rules = Rules::builder()
+            .button(button, vec![CTRL, ESC])
+            .build()
+            .unwrap();
+        let mut s = Session::default();
+        s.add_pointer(A, rules);
+        let mut out = Vec::new();
+        s.on_button(A, KeyEvent::press(button), t(0), &mut out);
+        s.release_all(&mut out);
+        let count = out.len();
+        s.on_button(A, KeyEvent::release(button), t(1), &mut out);
+        assert_eq!(out.len(), count);
+        assert!(s.held().is_empty());
     }
 
     #[test]

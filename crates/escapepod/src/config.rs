@@ -57,6 +57,8 @@ struct File {
     #[serde(default)]
     remap: Vec<RemapEntry>,
     #[serde(default)]
+    button: Vec<ButtonEntry>,
+    #[serde(default)]
     device: Vec<DeviceEntry>,
 }
 
@@ -77,6 +79,13 @@ struct RemapEntry {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ButtonEntry {
+    button: Spanned<String>,
+    keys: Vec<Spanned<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DeviceEntry {
     name: Option<String>,
     id: Option<Spanned<String>>,
@@ -85,6 +94,7 @@ struct DeviceEntry {
     tap_timeout_ms: Option<Spanned<u64>>,
     dual_role: Option<Vec<DualRoleEntry>>,
     remap: Option<Vec<RemapEntry>>,
+    button: Option<Vec<ButtonEntry>>,
 }
 
 /// How a device rule picks its device.
@@ -110,6 +120,7 @@ impl Matcher {
 struct Mapping {
     dual: Vec<DualRole>,
     remap: Vec<(KeyCode, KeyCode)>,
+    buttons: Vec<(KeyCode, Vec<KeyCode>)>,
     tap_timeout: Option<Duration>,
 }
 
@@ -152,6 +163,14 @@ pub struct Config {
 }
 
 impl Config {
+    /// Whether any configured rule maps a pointer button.
+    pub fn has_buttons(&self) -> bool {
+        self.global.buttons().next().is_some()
+            || self
+                .devices
+                .iter()
+                .any(|d| d.rules.buttons().next().is_some())
+    }
     /// The rules for `device`, or `None` when it is ignored.
     pub fn rules_for(&self, device: &DeviceInfo) -> Option<&Rules> {
         match self.devices.iter().find(|r| r.matcher.matches(device)) {
@@ -166,10 +185,12 @@ impl Config {
     pub fn is_empty(&self) -> bool {
         self.global.dual_roles().next().is_none()
             && self.global.remaps().next().is_none()
-            && self
-                .devices
-                .iter()
-                .all(|d| d.rules.dual_roles().next().is_none() && d.rules.remaps().next().is_none())
+            && self.global.buttons().next().is_none()
+            && self.devices.iter().all(|d| {
+                d.rules.dual_roles().next().is_none()
+                    && d.rules.remaps().next().is_none()
+                    && d.rules.buttons().next().is_none()
+            })
     }
 }
 
@@ -208,7 +229,12 @@ pub fn load(
         None => (String::new(), File::default()),
     };
     let ctx = Ctx { path, text: &text };
-    let mut global = ctx.mapping(&file.dual_role, &file.remap, file.tap_timeout_ms.as_ref())?;
+    let mut global = ctx.mapping(
+        &file.dual_role,
+        &file.remap,
+        &file.button,
+        file.tap_timeout_ms.as_ref(),
+    )?;
     if let Some(map) = &overrides.map {
         global.dual.clone_from(map);
     }
@@ -240,6 +266,9 @@ pub fn load(
         for &(s, t) in &m.remap {
             b = b.remap(s, t);
         }
+        for (button, keys) in &m.buttons {
+            b = b.button(*button, keys.clone());
+        }
         for &p in &protect {
             b = b.protect(p);
         }
@@ -264,6 +293,7 @@ pub fn load(
         let own = ctx.mapping(
             d.dual_role.as_deref().unwrap_or(&file.dual_role),
             d.remap.as_deref().unwrap_or(&file.remap),
+            d.button.as_deref().unwrap_or(&file.button),
             d.tap_timeout_ms.as_ref().or(file.tap_timeout_ms.as_ref()),
         )?;
         let mapping = if d.dual_role.is_none() && overrides.map.is_some() {
@@ -281,15 +311,7 @@ pub fn load(
         });
     }
     let shadowed = shadowed(&global_rules, &devices);
-    let listed_only = match file
-        .grab
-        .as_ref()
-        .map(|g| (g.get_ref().as_str(), g.span().start))
-    {
-        None | Some(("all", _)) => false,
-        Some(("listed", _)) => true,
-        Some((_, at)) => return Err(ctx.at(Some(at), "`grab` is \"all\" or \"listed\"")),
-    };
+    let listed_only = parse_grab(file.grab.as_ref(), &ctx)?;
     Ok(Config {
         listed_only,
         source: path.map(Path::to_path_buf),
@@ -298,6 +320,17 @@ pub fn load(
         devices,
         shadowed,
     })
+}
+
+fn parse_grab(grab: Option<&Spanned<String>>, ctx: &Ctx<'_>) -> Result<bool, AppError> {
+    match grab
+        .as_ref()
+        .map(|g| (g.get_ref().as_str(), g.span().start))
+    {
+        None | Some(("all", _)) => Ok(false),
+        Some(("listed", _)) => Ok(true),
+        Some((_, at)) => Err(ctx.at(Some(at), "`grab` is \"all\" or \"listed\"")),
+    }
 }
 
 /// Reads and parses the file at `p`.
@@ -342,6 +375,7 @@ impl Ctx<'_> {
         &self,
         dual: &[DualRoleEntry],
         remap: &[RemapEntry],
+        buttons: &[ButtonEntry],
         timeout: Option<&Spanned<u64>>,
     ) -> Result<Mapping, AppError> {
         let dual = dual
@@ -365,12 +399,46 @@ impl Ctx<'_> {
             .iter()
             .map(|r| Ok((self.key(&r.from)?, self.key(&r.to)?)))
             .collect::<Result<_, AppError>>()?;
+        let buttons = buttons
+            .iter()
+            .map(|entry| {
+                let button = self.key(&entry.button)?;
+                if !(0x110..=0x11f).contains(&button.code()) {
+                    return Err(self.at(
+                        Some(entry.button.span().start),
+                        "button must be a mouse button",
+                    ));
+                }
+                let keys = entry
+                    .keys
+                    .iter()
+                    .map(|key| {
+                        let parsed = self.key(key)?;
+                        if (0x100..0x160).contains(&parsed.code()) {
+                            return Err(self.at(
+                                Some(key.span().start),
+                                "shortcut keys must be keyboard keys",
+                            ));
+                        }
+                        Ok(parsed)
+                    })
+                    .collect::<Result<Vec<_>, AppError>>()?;
+                if keys.is_empty() || keys.len() > 8 {
+                    return Err(self.at(
+                        Some(entry.button.span().start),
+                        "a button shortcut needs one to eight keys",
+                    ));
+                }
+                Ok((button, keys))
+            })
+            .collect::<Result<_, AppError>>()?;
         let tap_timeout = timeout
             .map(|t| check_timeout(*t.get_ref(), Some(t.span().start), self))
             .transpose()?;
         Ok(Mapping {
             dual,
             remap,
+            buttons,
             tap_timeout,
         })
     }
@@ -483,6 +551,38 @@ fn toml_error(path: &Path, text: &str, e: &toml::de::Error) -> AppError {
 mod tests {
     use super::*;
     use std::io::Write as _;
+
+    #[test]
+    // Verifies: ESC-SRS-112
+    fn button_rules_inherit_and_validate() {
+        let path = write(
+            r#"
+[[button]]
+button = "BTN_SIDE"
+keys = ["KEY_LEFTCTRL", "KEY_RIGHT"]
+[[device]]
+id = "1234:5678"
+[[device.button]]
+button = "BTN_EXTRA"
+keys = ["KEY_LEFT"]
+"#,
+        );
+        let cfg = load(Some(&path), &Overrides::default(), &[]).unwrap();
+        let side = KeyCode::from_name("BTN_SIDE").unwrap();
+        let extra = KeyCode::from_name("BTN_EXTRA").unwrap();
+        assert_eq!(cfg.global.button(side).unwrap().len(), 2);
+        assert!(cfg.devices[0].rules.button(side).is_none());
+        assert_eq!(cfg.devices[0].rules.button(extra).unwrap().len(), 1);
+        for content in [
+            "[[button]]\nbutton='BTN_SIDE'\nkeys=[]\n",
+            "[[button]]\nbutton='KEY_A'\nkeys=['KEY_B']\n",
+            "[[button]]\nbutton='BTN_SIDE'\nkeys=['BTN_EXTRA']\n",
+            "[[button]]\nbutton='BTN_SIDE'\nkeys=['KEY_A','KEY_A']\n",
+        ] {
+            let invalid = write(content);
+            load(Some(&invalid), &Overrides::default(), &[]).unwrap_err();
+        }
+    }
 
     fn write(text: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(

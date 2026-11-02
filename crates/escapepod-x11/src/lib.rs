@@ -49,7 +49,9 @@ pub enum XEvent {
 /// core event records. Other events are skipped.
 #[must_use]
 pub fn decode(data: &[u8]) -> Vec<XEvent> {
-    data.chunks_exact(32)
+    data.as_chunks::<32>()
+        .0
+        .iter()
         .filter_map(|e| match e[0] & 0x7f {
             KEY_PRESS => Some(XEvent::Key {
                 keycode: e[1],

@@ -10,6 +10,17 @@ use std::path::Path;
 
 use escapepod_core::KeyEvent;
 
+/// A kernel input event without its timestamp.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PointerEvent {
+    /// Kernel event type.
+    pub kind: u16,
+    /// Kernel event code.
+    pub code: u16,
+    /// Event value.
+    pub value: i32,
+}
+
 /// A keyboard the daemon reads and, once idle, grabs exclusively.
 pub trait Keyboard {
     /// Takes the exclusive grab (`EVIOCGRAB`): from now on only this
@@ -36,8 +47,30 @@ pub trait Keyboard {
     fn read(&mut self, out: &mut Vec<KeyEvent>) -> io::Result<()>;
 }
 
-/// A pointer the daemon reads, never grabs, for button presses.
+/// A pointer observed for presses or grabbed for configured button shortcuts.
 pub trait Pointer {
+    /// Whether all capabilities can be forwarded by the virtual pointer.
+    fn supports_forwarding(&self) -> bool {
+        false
+    }
+    /// Whether no button is held.
+    /// # Errors
+    /// Returns the device query error.
+    fn is_idle(&self) -> io::Result<bool> {
+        Err(io::ErrorKind::Unsupported.into())
+    }
+    /// Takes the exclusive grab.
+    /// # Errors
+    /// Returns the grab error.
+    fn grab(&mut self) -> io::Result<()> {
+        Err(io::ErrorKind::Unsupported.into())
+    }
+    /// Reads complete frames, including synchronization reports.
+    /// # Errors
+    /// Returns the device read error.
+    fn read_events(&mut self, _out: &mut Vec<PointerEvent>) -> io::Result<()> {
+        Err(io::ErrorKind::Unsupported.into())
+    }
     /// The number of button presses waiting, read without blocking.
     ///
     /// # Errors
@@ -48,6 +81,16 @@ pub trait Pointer {
 
 /// The virtual keyboard every output goes to.
 pub trait Sink {
+    /// Whether pointer output was created before any grab.
+    fn has_pointer(&self) -> bool {
+        false
+    }
+    /// Writes a pointer frame, excluding its synchronization report.
+    /// # Errors
+    /// Returns the output error.
+    fn emit_pointer(&mut self, _events: &[PointerEvent]) -> io::Result<()> {
+        Err(io::ErrorKind::Unsupported.into())
+    }
     /// Writes `events` and one synchronisation report.
     ///
     /// # Errors

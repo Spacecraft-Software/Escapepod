@@ -183,6 +183,20 @@ traits, so the session logic is tested against fakes and the real path is
 tested end to end by a uinput loopback keyboard behind the
 @code{hardware-tests} feature.
 
+@strong{Mapped mice.}  The virtual pointer is created alongside the
+virtual keyboard before any grab.  A pointer with button rules is grabbed
+only after its buttons are released and its capabilities have been checked
+against the virtual pointer.  Unsupported devices remain ungrabbed.
+Relative motion, wheels and unmapped mouse buttons retain their input
+order.  Shortcut keys have separate owners for each physical button, so
+overlapping buttons cannot release one another's modifiers.  Unmapped
+pointer buttons use a second held-keys ledger and are released on removal,
+read failure, reload, termination, panic and emergency release.
+
+@option{--only-device} restricts admission before opening a device and
+continues to apply during hotplug and reload.  X11 cannot enforce the
+restriction and rejects it.
+
 @strong{Poll primitive.}  @code{nix::poll}, since @code{evdev} already
 links @code{nix} 0.29; no second syscall crate enters the graph.
 

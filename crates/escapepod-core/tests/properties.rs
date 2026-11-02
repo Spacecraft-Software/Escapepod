@@ -8,7 +8,7 @@ mod common;
 use std::collections::BTreeMap;
 
 use common::{action, inputs, rules};
-use escapepod_core::{Engine, Input, KeyEvent, KeyValue};
+use escapepod_core::{DeviceId, Engine, Input, Instant, KeyEvent, KeyValue, Rules, Session};
 use proptest::prelude::*;
 
 fn run(seq: &[(Input, escapepod_core::Instant)]) -> Vec<KeyEvent> {
@@ -22,6 +22,34 @@ fn run(seq: &[(Input, escapepod_core::Instant)]) -> Vec<KeyEvent> {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(4096))]
+
+    #[test]
+    fn interleaved_button_shortcuts_are_balanced(actions in proptest::collection::vec((0u8..3, any::<bool>()), 0..80)) {
+        let ctrl = common::key("KEY_LEFTCTRL");
+        let right = common::key("KEY_RIGHT");
+        let left = common::key("KEY_LEFT");
+        let side = common::key("BTN_SIDE");
+        let extra = common::key("BTN_EXTRA");
+        let rules = Rules::builder().button(side, vec![ctrl, right]).button(extra, vec![ctrl, left]).build().unwrap();
+        let mut session = Session::default();
+        session.add_device(DeviceId(1), Rules::default());
+        session.add_pointer(DeviceId(2), rules);
+        let mut out = Vec::new();
+        for (which, press) in actions {
+            let key = match which { 0 => ctrl, 1 => side, _ => extra };
+            let ev = if press { KeyEvent::press(key) } else { KeyEvent::release(key) };
+            if which == 0 { session.on_key(DeviceId(1), ev, Instant::default(), &mut out); }
+            else { session.on_button(DeviceId(2), ev, Instant::default(), &mut out); }
+        }
+        session.release_all(&mut out);
+        let mut depth = BTreeMap::new();
+        for ev in out {
+            let d = depth.entry(ev.key).or_insert(0i32);
+            match ev.value { KeyValue::Press => *d += 1, KeyValue::Release => *d -= 1, KeyValue::Repeat => {} }
+            prop_assert!((0..=1).contains(d));
+        }
+        prop_assert!(depth.values().all(|&d| d == 0));
+    }
 
     // Verifies: ESC-SRS-018
     /// Every key press the engine emits is followed by a release, and no

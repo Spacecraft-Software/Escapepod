@@ -327,6 +327,13 @@ pub fn status_of(d: &DeviceInfo, cfg: Option<&Config>) -> &'static str {
             Some(None) => "ignored",
             _ => "grab",
         },
+        DeviceKind::Pointer
+            if cfg
+                .and_then(|c| c.rules_for(d))
+                .is_some_and(|r| r.buttons().next().is_some()) =>
+        {
+            "grab"
+        }
         DeviceKind::Pointer => "read",
         DeviceKind::Other => "none",
     }
@@ -369,6 +376,7 @@ fn rules_json(r: &Rules) -> Value {
         "tap_timeout_ms": u64::try_from(r.tap_timeout().as_millis()).unwrap_or(u64::MAX),
         "dual_role": r.dual_roles().map(|d| json!({ "key": d.key.to_string(), "hold": d.hold.to_string(), "tap": d.tap.to_string() })).collect::<Vec<_>>(),
         "remap": r.remaps().map(|(s, t)| json!({ "from": s.to_string(), "to": t.to_string() })).collect::<Vec<_>>(),
+        "button": r.buttons().map(|(button, keys)| json!({ "button": button.to_string(), "keys": keys.iter().map(ToString::to_string).collect::<Vec<_>>() })).collect::<Vec<_>>(),
         "protected": r.protected().map(|k| k.to_string()).collect::<Vec<_>>(),
     })
 }
@@ -418,7 +426,19 @@ fn config_check(
 /// `daemon run`: the guards and the dry run. The run itself is the
 /// backend's.
 fn daemon_run(cli: &Cli, args: &RunArgs, mode: &Mode, io: &mut Io<'_>) -> Result<Exit, AppError> {
+    if args.only_device.is_some() && args.backend == BackendArg::X11 {
+        return Err(AppError::invalid(
+            "--only-device requires the evdev backend",
+            "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
+        ));
+    }
     let cfg = load_config(cli, &args.mapping, io.env)?;
+    if cfg.has_buttons() && args.backend == BackendArg::X11 {
+        return Err(AppError::invalid(
+            "the X11 backend cannot suppress mouse buttons",
+            "escapepod daemon run --backend evdev --dry-run",
+        ));
+    }
     let g = &cli.global;
     // Implements: ESC-SRS-037
     if !g.dry_run && !g.yes && (!io.env.stdout_tty || io.env.is_agent()) {
@@ -451,11 +471,11 @@ fn daemon_run(cli: &Cli, args: &RunArgs, mode: &Mode, io: &mut Io<'_>) -> Result
         );
     }
     if g.dry_run {
-        return dry_run(&cfg, args.backend, mode, io);
+        return dry_run(&cfg, args.backend, args.only_device, mode, io);
     }
     let env = io.env.clone();
     let reload = move || load_config(cli, &args.mapping, &env);
-    crate::service::run(cfg, args.backend, mode, io, &reload)
+    crate::service::run(cfg, args.backend, args.only_device, mode, io, &reload)
 }
 
 /// `daemon run --dry-run`: the devices it would grab and the mappings it
@@ -464,13 +484,14 @@ fn daemon_run(cli: &Cli, args: &RunArgs, mode: &Mode, io: &mut Io<'_>) -> Result
 fn dry_run(
     cfg: &Config,
     backend: BackendArg,
+    only_device: Option<(u16, u16)>,
     mode: &Mode,
     io: &mut Io<'_>,
 ) -> Result<Exit, AppError> {
     let devices = scan_devices(io.env).unwrap_or_default();
     let data = json!({
         "backend": match backend { BackendArg::Auto => "auto", BackendArg::Evdev => "evdev", BackendArg::X11 => "x11" },
-        "devices": devices.iter().filter(|d| d.kind != DeviceKind::Other).map(|d| device_json(d, Some(cfg))).collect::<Vec<_>>(),
+        "devices": devices.iter().filter(|d| d.kind != DeviceKind::Other).map(|d| { let mut value = device_json(d, Some(cfg)); if only_device.is_some_and(|id| id != (d.vendor, d.product)) && !d.is_own() { value["status"] = json!("ignored"); } value }).collect::<Vec<_>>(),
         "mappings": rules_json(&cfg.global),
         "emergency_chord": cfg.chord.keys().map(|k| k.to_string()).collect::<Vec<_>>(),
     });
@@ -551,6 +572,16 @@ fn mappings_text(v: &Value) -> String {
     }
     for r in v["remap"].as_array().into_iter().flatten() {
         let _ = writeln!(s, "remap: {} -> {}", str_of(&r["from"]), str_of(&r["to"]));
+    }
+    for b in v["button"].as_array().into_iter().flatten() {
+        let keys = b["keys"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(str_of)
+            .collect::<Vec<_>>()
+            .join(" + ");
+        let _ = writeln!(s, "button: {} -> {}", str_of(&b["button"]), keys);
     }
     for p in v["protected"].as_array().into_iter().flatten() {
         let _ = writeln!(s, "protected: {}", str_of(p));

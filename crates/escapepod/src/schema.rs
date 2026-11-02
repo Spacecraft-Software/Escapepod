@@ -180,6 +180,7 @@ fn mapping_params() -> Value {
 fn run_params() -> Value {
     let mut p = mapping_props();
     p.insert("backend".into(), json!({ "type": "string", "enum": ["auto", "evdev", "x11"], "default": "auto", "description": "Backend" }));
+    p.insert("only_device".into(), json!({ "type": "string", "pattern": "^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$", "description": "Restrict device access to this vendor and product" }));
     p.insert(
         "yes".into(),
         json!({ "type": "boolean", "description": "Required off a terminal or under an agent" }),

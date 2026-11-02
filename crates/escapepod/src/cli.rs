@@ -219,6 +219,25 @@ pub struct RunArgs {
     /// The backend: auto, evdev or x11
     #[arg(long, value_enum, default_value_t = BackendArg::Auto)]
     pub backend: BackendArg,
+    /// Restrict grabs to this vendor and product (hexadecimal VVVV:PPPP)
+    #[arg(long, value_name = "VVVV:PPPP", value_parser = parse_device_id)]
+    pub only_device: Option<(u16, u16)>,
+}
+
+fn parse_device_id(value: &str) -> Result<(u16, u16), &'static str> {
+    let (vendor, product) = value.split_once(':').ok_or("expected VVVV:PPPP")?;
+    if vendor.len() != 4
+        || product.len() != 4
+        || !value
+            .bytes()
+            .enumerate()
+            .all(|(i, b)| i == 4 && b == b':' || i != 4 && b.is_ascii_hexdigit())
+    {
+        return Err("expected VVVV:PPPP in hexadecimal");
+    }
+    let vendor = u16::from_str_radix(vendor, 16).map_err(|_error| "invalid vendor")?;
+    let product = u16::from_str_radix(product, 16).map_err(|_error| "invalid product")?;
+    Ok((vendor, product))
 }
 
 /// The values of `--backend`.
