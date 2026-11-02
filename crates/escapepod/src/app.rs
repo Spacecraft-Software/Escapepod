@@ -225,23 +225,19 @@ fn dispatch(cli: &Cli, mode: &Mode, io: &mut Io<'_>) -> Result<Exit, AppError> {
 fn version(mode: &Mode, io: &mut Io<'_>) -> Result<Exit, AppError> {
     let maintainer = "Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>";
     let website = "https://EscapePod.SpacecraftSoftware.org/";
-    let text = if mode.format.is_machine() {
-        let mut meta = mode.metadata();
-        if let Some(o) = meta.as_object_mut() {
-            o.insert("maintainer".into(), maintainer.into());
-            o.insert("website".into(), website.into());
-        }
-        let env = json!({ "metadata": meta, "data": {
-            "version": env!("CARGO_PKG_VERSION"), "maintainer": maintainer, "website": website,
-            "license": "GPL-3.0-or-later" } });
-        format!("{}\n", serde_json::to_string(&env).unwrap_or_default())
-    } else {
-        format!(
-            "escapepod {}\nMaintained by {maintainer}\n{website}\n",
-            env!("CARGO_PKG_VERSION")
-        )
-    };
-    crate::output::write_all(io.out, text.as_bytes())?;
+    let data = json!({ "version": env!("CARGO_PKG_VERSION"), "maintainer": maintainer,
+                       "website": website, "license": "GPL-3.0-or-later" });
+    mode.emit_with(
+        io.out,
+        data,
+        &[("maintainer", maintainer), ("website", website)],
+        |_, _| {
+            format!(
+                "escapepod {}\nMaintained by {maintainer}\n{website}\n",
+                env!("CARGO_PKG_VERSION")
+            )
+        },
+    )?;
     Ok(Exit::Success)
 }
 

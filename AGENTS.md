@@ -31,7 +31,12 @@ Enter the pinned toolchain first: `nix develop`. The flake pins rustc through
 - Traceability matrix: `nu tools/trace.nu` (`--release` at G3, `--json`)
 - Progress block (§17.1): `nu tools/progress.nu`
 - Requirements chapter: edit `doc/requirements.toml`, then `nu tools/srs.nu`
-- Manual: `make -C doc` (`make` comes from `nix develop`)
+- Manual: `make -C doc` (`make` comes from `nix develop`); the PDF with zero
+  TeX warnings: `nu tools/ci.nu --only pdf`
+- Packages: `nix build .#default`; NixOS VM test of `services.escapepod`
+  (the safe place for device tests: no real keyboard exists there):
+  `nu tools/ci.nu --only vm`; after a `Cargo.lock` change run
+  `nu tools/guix-crates.nu` (gate `guix-crates`)
 - Build: `cargo build --locked`
 - Test: `cargo test --workspace --locked`
 - Lint: `cargo clippy --all-targets --all-features --locked -- -D warnings`

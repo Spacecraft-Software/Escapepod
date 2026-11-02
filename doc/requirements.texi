@@ -552,37 +552,37 @@ Rationale: The log says why the daemon stopped.  Source: ESC-NEED-006.  Method: 
 @anchor{ESC-SRS-069}
 The service unit shall run the daemon as the @code{escapepod} system account.
 
-Rationale: Keylogging rights stay off the login account.  Source: ESC-NEED-004.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Keylogging rights stay off the login account.  Source: ESC-NEED-004.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-070 @emph{Scoped udev rules}
 @anchor{ESC-SRS-070}
 The shipped udev rules shall grant event-device read access and @code{/dev/uinput} write access to group @code{escapepod} and to no other group.
 
-Rationale: Device access is granted to the daemon alone.  Source: ESC-NEED-004.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Device access is granted to the daemon alone.  Source: ESC-NEED-004.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-071 @emph{No input group}
 @anchor{ESC-SRS-071}
 The packaging shall not add any login account to the @code{input} group.
 
-Rationale: Membership would let every program the user runs read every keyboard.  Source: ESC-NEED-004.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Membership would let every program the user runs read every keyboard.  Source: ESC-NEED-004.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-072 @emph{Service sandbox}
 @anchor{ESC-SRS-072}
 The service unit shall restrict the daemon to the @code{AF_UNIX} and @code{AF_NETLINK} address families.
 
-Rationale: A keystroke-handling process has no use for a network.  Source: Standard §3.3.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: A keystroke-handling process has no use for a network.  Source: Standard §3.3.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-073 @emph{No restart after emergency}
 @anchor{ESC-SRS-073}
 The service unit shall not restart the daemon after exit code 6.
 
-Rationale: A restart would re-grab the keyboard the user just freed.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: A restart would re-grab the keyboard the user just freed.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-074 @emph{NixOS module}
 @anchor{ESC-SRS-074}
 The project shall ship a NixOS module @code{services.escapepod} that installs the service, the udev rules, the account, and the configuration.
 
-Rationale: Steelbore OS Bravais is NixOS.  Source: ESC-NEED-002.  Method: test (NixOS VM test).  Priority: mandatory.  Status: baselined.
+Rationale: Steelbore OS Bravais is NixOS.  Source: ESC-NEED-002.  Method: test (NixOS VM test).  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-075 @emph{Guix package}
 @anchor{ESC-SRS-075}
@@ -594,25 +594,25 @@ Rationale: Distribution requirement.  Source: Standard §5.5.  Method: test.  Pr
 @anchor{ESC-SRS-076}
 @code{packaging/default.nix} shall build the release.
 
-Rationale: Distribution requirement.  Source: Standard §5.5.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Distribution requirement.  Source: Standard §5.5.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-077 @emph{Arch package}
 @anchor{ESC-SRS-077}
 @code{packaging/PKGBUILD} shall build the release with @code{makepkg}.
 
-Rationale: Distribution requirement.  Source: Standard §5.5.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: Distribution requirement.  Source: Standard §5.5.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-078 @emph{Manual}
 @anchor{ESC-SRS-078}
 @code{doc/escapepod.texi} shall build to Info, HTML, and PDF with zero errors and zero warnings.
 
-Rationale: The manual is the canonical reference.  Source: Standard §8.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The manual is the canonical reference.  Source: Standard §8.  Method: test.  Priority: mandatory.  Status: verified.
 
 @item ESC-SRS-089 @emph{Interface control document}
 @anchor{ESC-SRS-089}
 @code{doc/escapepod.texi} shall carry an @code{Interfaces} node recording, for each interface, its identity, version, contract, error behaviour, stability class, committed schema, and known consumers.
 
-Rationale: Category B ships an ICD.  Source: Standard §23.2.  Method: inspection.  Priority: mandatory.  Status: baselined.
+Rationale: Category B ships an ICD.  Source: Standard §23.2.  Method: inspection.  Priority: mandatory.  Status: verified.
 
 @end table
 

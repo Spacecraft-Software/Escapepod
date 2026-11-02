@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Escape Pod system service: the evdev backend as the escapepod account.
+# @BINDIR@ is replaced by the packaging (default /usr/bin).
+
+[Unit]
+Description=Escape Pod dual-role key daemon
+Documentation=info:escapepod https://EscapePod.SpacecraftSoftware.org/
+
+[Service]
+Type=simple
+# Implements: ESC-SRS-069 (keylogging rights stay off the login account)
+User=escapepod
+Group=escapepod
+SupplementaryGroups=escapepod-ctl
+ExecStart=@BINDIR@/escapepod daemon run --yes --backend evdev --config /etc/escapepod/config.toml
+ExecReload=/bin/kill -HUP $MAINPID
+# Implements: ESC-SRS-073 (exit 6 is the emergency chord: never re-grab)
+Restart=on-failure
+RestartSec=1s
+RestartPreventExitStatus=6
+# Implements: ESC-SRS-072 (no network: Unix sockets and netlink only)
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+IPAddressDeny=any
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+DevicePolicy=closed
+DeviceAllow=/dev/uinput rw
+DeviceAllow=char-input r
+ReadWritePaths=/run/escapepod
+
+[Install]
+WantedBy=multi-user.target

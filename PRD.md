@@ -253,17 +253,17 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M5 — Privileges, packaging and manual
 
-- [ ] ESC-SRS-069 Service runs as the `escapepod` account
-- [ ] ESC-SRS-070 udev rules scoped to the `escapepod` group
-- [ ] ESC-SRS-071 No login user added to `input`
-- [ ] ESC-SRS-072 Service unit sandboxed
-- [ ] ESC-SRS-073 Service not restarted after emergency exit
-- [ ] ESC-SRS-074 NixOS module `services.escapepod`
+- [x] ESC-SRS-069 Service runs as the `escapepod` account
+- [x] ESC-SRS-070 udev rules scoped to the `escapepod` group
+- [x] ESC-SRS-071 No login user added to `input`
+- [x] ESC-SRS-072 Service unit sandboxed
+- [x] ESC-SRS-073 Service not restarted after emergency exit
+- [x] ESC-SRS-074 NixOS module `services.escapepod`
 - [ ] ESC-SRS-075 `packaging/guix.scm` builds
-- [ ] ESC-SRS-076 `packaging/default.nix` builds
-- [ ] ESC-SRS-077 `packaging/PKGBUILD` builds
-- [ ] ESC-SRS-078 Texinfo manual builds Info, HTML, PDF
-- [ ] ESC-SRS-089 Interfaces node (ICD) in the manual
+- [x] ESC-SRS-076 `packaging/default.nix` builds
+- [x] ESC-SRS-077 `packaging/PKGBUILD` builds
+- [x] ESC-SRS-078 Texinfo manual builds Info, HTML, PDF
+- [x] ESC-SRS-089 Interfaces node (ICD) in the manual
 
 
 ## M6 — Verification and release gate

@@ -7,7 +7,8 @@
 # `rust-version`) is a separate figure, checked by CI's own msrv job. There is
 # deliberately no rust-toolchain.toml: a rustup-downloaded toolchain does not
 # run on NixOS without an FHS loader (tailoring row in COMPLIANCE.md).
-# Package outputs and the NixOS module join at M5 (P-035, P-036).
+# Outputs: packages.default (packaging/default.nix), nixosModules.default
+# (services.escapepod) and checks.nixos (the VM test).
 {
   description = "Escape Pod — tap a key for Escape, hold it for Control";
 
@@ -71,6 +72,23 @@
           };
         }
       );
+
+      packages = forAllSystems (system: {
+        default = nixpkgs.legacyPackages.${system}.callPackage ./packaging/default.nix { };
+      });
+
+      nixosModules.default = {
+        imports = [ ./packaging/nixos/module.nix ];
+      };
+
+      checks = forAllSystems (system: {
+        package = self.packages.${system}.default;
+        nixos = import ./packaging/nixos/test.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          module = self.nixosModules.default;
+          package = self.packages.${system}.default;
+        };
+      });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
     };

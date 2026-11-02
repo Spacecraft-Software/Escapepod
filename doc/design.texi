@@ -27,7 +27,7 @@ and may change without them.
 @node Architecture
 @section Architecture
 
-@example
+@smallexample
  keyboards --grab--+                          +--> uinput virtual keyboard
  pointers  --read--+--> escapepod-evdev --+   |
  inotify, signals -+                      |   |
@@ -37,7 +37,7 @@ and may change without them.
                                           +--> status socket (redacted)
 
  X11:  RECORD --> escapepod-x11 --> Engine --> XTEST (tap key only)
-@end example
+@end smallexample
 
 @table @code
 @item escapepod-core
@@ -161,9 +161,10 @@ configuration no longer matches are released.
 @node Device handling
 @section Device handling
 
-@strong{Discovery without device access.}  Devices are found from sysfs,
-@file{/sys/class/input/event@var{N}/device/}: the name, the vendor and
-product identifiers and the key capability bitmap.  This needs no read
+@strong{Discovery without device access.}  Devices are found from sysfs:
+for each @file{event@var{N}} under @file{/sys/class/input}, its
+@file{device} directory gives the name, the vendor and product identifiers
+and the key capability bitmap.  This needs no read
 access to any event device, which is what @code{device list} relies on
 (ESC-SRS-036).  A device is a keyboard when it reports @code{KEY_A} to
 @code{KEY_Z} and Enter; a pointer when it reports @code{BTN_LEFT}.

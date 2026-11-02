@@ -18,41 +18,33 @@ declared class would be stable by default; every one here declares one.
 * CLI interface::         Commands, global flags, output, errors, exit codes.
 * Configuration format::  The TOML file and the mapping grammar.
 * Environment interface:: Variables Escape Pod reads.
+* Status socket::         The daemon's JSON Lines protocol.
+* Packaging surface::     Paths, units, rules and accounts.
 @end menu
 
 @node Interface inventory
 @section Interface inventory
 
-@multitable @columnfractions .24 .22 .10 .12 .32
-@headitem Interface @tab §23.1 class @tab Version @tab Stability @tab Schema and consumers
+@table @asis
 @item CLI command tree and flags
-@tab Command-line surface @tab 1 @tab unstable
-@tab @code{escapepod schema}; users, agents, the systemd unit
+Class: Command-line surface.  Version 1, unstable.  Schema and consumers: @code{escapepod schema}; users, agents, the systemd unit.
 @item JSON envelope and errors
-@tab Machine-readable output @tab 1 @tab unstable
-@tab @file{schemas/envelope.schema.json}; agents, @code{daemon status}
+Class: Machine-readable output.  Version 1, unstable.  Schema and consumers: @file{schemas/envelope.schema.json}; agents, @code{daemon status}.
 @item Exit codes 0 to 6
-@tab Command-line surface @tab 1 @tab stable
-@tab none (a table); the systemd unit (@code{RestartPreventExitStatus=6})
+Class: Command-line surface.  Version 1, stable.  Schema and consumers: none (a table); the systemd unit (@code{RestartPreventExitStatus=6}).
 @item Configuration file
-@tab On-disk and configuration @tab 1 @tab unstable
-@tab @file{schemas/config.schema.json}; users, the NixOS module
+Class: On-disk and configuration.  Version 1, unstable.  Schema and consumers: @file{schemas/config.schema.json}; users, the NixOS module.
 @item xcape mapping grammar
-@tab Command-line surface @tab 1 @tab stable
-@tab none (a grammar); former xcape users
+Class: Command-line surface.  Version 1, stable.  Schema and consumers: none (a grammar); former xcape users.
 @item Status socket protocol
-@tab Wire and IPC @tab 1 @tab unstable
-@tab @file{schemas/status.schema.json}; @code{daemon status}
+Class: Wire and IPC.  Version 1, unstable.  Schema and consumers: @file{schemas/status.schema.json}; @code{daemon status}.
 @item Environment variables
-@tab Environment variables @tab 1 @tab stable
-@tab none; agent harnesses, terminals
+Class: Environment variables.  Version 1, stable.  Schema and consumers: none; agent harnesses, terminals.
 @item Paths and packaging surface
-@tab Filesystem layout @tab 1 @tab unstable
-@tab none; packagers, the NixOS module
+Class: Filesystem layout.  Version 1, unstable.  Schema and consumers: none; packagers, the NixOS module.
 @item Crate APIs
-@tab Library API @tab 0 @tab internal
-@tab none; the workspace's own crates only (unpublished)
-@end multitable
+Class: Library API.  Version 0, internal.  Schema and consumers: none; the workspace's own crates only (unpublished).
+@end table
 
 Each interface's contract (names, types, ranges, units, encodings, error
 behaviour) is written as its own node when the interface is built: the CLI
@@ -86,19 +78,21 @@ An explicit format wins; else an agent environment selects JSON; else a
 terminal selects human text; else JSON.  Human text is UTF-8 and parses with
 @command{awk}; JSON is compact, one document, on standard output only.
 @item Envelope
-@code{@{"metadata": @{"tool", "version", "command", "timestamp"@}, "data": ...@}},
-committed as @file{schemas/envelope.schema.json}.  Timestamps are ISO 8601
+One object with @code{metadata} (@code{tool}, @code{version},
+@code{command}, @code{timestamp}) and @code{data}, committed as
+@file{schemas/envelope.schema.json}.  Timestamps are ISO 8601
 UTC with @samp{Z}, whole seconds.
 @item Errors
-One compact line on standard error:
-@code{@{"error": @{"code", "exit_code", "message", "hint", "timestamp",
-"command", "docs_url"@}@}}, with extended fields @code{path}, @code{line},
+One compact line on standard error: an object with one key, @code{error},
+holding @code{code}, @code{exit_code}, @code{message}, @code{hint},
+@code{timestamp}, @code{command} and @code{docs_url}, with extended fields @code{path}, @code{line},
 @code{column} or @code{position} where they apply.  The hint is a command
 runnable without privileges, or @samp{human:} and an action.  Human mode
 prints @samp{[ERROR] @var{message}} and an indented @samp{hint:} line.
 @item Diagnostics
-@code{@{"diagnostic": @{"severity", "code", "message", "hint",
-"timestamp", "command"@}@}} for @samp{warn}, @samp{ok} and @samp{info};
+An object with one key, @code{diagnostic}, holding @code{severity},
+@code{code}, @code{message}, @code{hint}, @code{timestamp} and
+@code{command}, for @samp{warn}, @samp{ok} and @samp{info};
 human mode prints @samp{[WARN]}, @samp{[OK]}, @samp{[INFO]}.  The floor is
 @samp{error} under @option{--quiet}, @samp{info} under @option{--verbose},
 @samp{warn} under @env{AI_AGENT} or @env{AGENT}, else @samp{ok}.
@@ -183,3 +177,57 @@ The status socket path, for the daemon and for @code{daemon status}.
 @item XDG_RUNTIME_DIR
 The session daemon's socket directory.
 @end table
+
+@node Status socket
+@section Status socket (version 1, unstable)
+
+@table @asis
+@item Path
+For the service, @file{escapepod.sock} in @file{/run/escapepod}, a
+directory of mode @samp{0750}, owner @samp{escapepod} and group
+@samp{escapepod-ctl}.  For a session daemon, @file{escapepod.sock} in
+@env{XDG_RUNTIME_DIR}.  @env{ESCAPEPOD_SOCKET} overrides both.
+@item Access
+Mode @samp{0660}, group @samp{escapepod-ctl}; @samp{0600} when that group
+does not exist.
+@item Framing
+UTF-8 JSON Lines, one object per line, compact.
+@item On connect
+The daemon writes one status object: @code{backend}, @code{devices}
+(@code{name}, @code{path}, @code{grabbed}), @code{pointers} (a count) and
+@code{held} (the number of keys held, never which).  Schema:
+@file{schemas/status.schema.json}.
+@item Subscription
+A client that writes @samp{events} receives one record per event of a
+managed key: @code{timestamp}, @code{device}, @code{key}, @code{value}
+(@samp{press}, @samp{release}, @samp{repeat}) and @code{decision}.  The key
+code of an unmanaged key is never written.
+@item Errors
+A client that cannot be written to is dropped; a second daemon finding a live
+socket exits 5.
+@end table
+
+@node Packaging surface
+@section Packaging surface (version 1, unstable)
+
+@table @asis
+@item @file{bin/escapepod}
+The binary.
+@item @file{lib/systemd/system/escapepod.service}
+Runs @code{daemon run --yes --backend evdev} with the configuration in @file{/etc/escapepod} as @samp{escapepod}; reload with @code{SIGHUP}; no restart after exit 6; @code{AF_UNIX} and @code{AF_NETLINK} only.
+@item @file{lib/udev/rules.d/70-escapepod.rules}
+Read ACL on event devices and group of @file{/dev/uinput}: @samp{escapepod} only.
+@item @file{lib/sysusers.d/escapepod.conf}
+Account @samp{escapepod}, groups @samp{escapepod} and @samp{escapepod-ctl}.
+@item @file{lib/tmpfiles.d/escapepod.conf}
+@file{/run/escapepod}.
+@item @file{share/info/escapepod.info}
+This manual.
+@item @file{/etc/escapepod/config.toml}
+The service's configuration (not shipped; @file{schemas/config.schema.json}).
+@item NixOS @code{services.escapepod}
+@code{enable}, @code{package}, @code{settings} (TOML), @code{statusUsers}.
+@end table
+
+Known consumers: the three package definitions in @file{packaging/}, the
+NixOS module and its VM test.

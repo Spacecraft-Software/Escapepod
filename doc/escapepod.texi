@@ -6,6 +6,12 @@
 @documentencoding UTF-8
 @documentlanguage en
 @settitle Escape Pod Manual 0.1
+@c Ragged right, with extra emergency stretch: long command names in the
+@c requirements would otherwise leave lines too loose or too wide.
+@tex
+\global\emergencystretch=3em
+\global\rightskip=0pt plus 2em
+@end tex
 @c %**end of header
 
 @set PROJECT Escape Pod
@@ -52,7 +58,8 @@ Escape Pod gives one key two jobs: tapped on its own it sends one key,
 held together with other keys it acts as a modifier.  It is the Spacecraft
 Software successor to xcape.
 
-This edition carries the needs and the software requirements specification
+It covers using Escape Pod (@pxref{Invoking}) and, for maintainers, the
+needs and the software requirements specification
 for version @value{VERSION}, at assurance Category B (The Steelbore Standard
 §19).  Status: requirements baselined at gate G1 (2026-11-01).
 
@@ -60,12 +67,20 @@ for version @value{VERSION}, at assurance Category B (The Steelbore Standard
 @end ifnottex
 
 @menu
+* Invoking::            Commands, the quick start and the emergency chord.
+* Configuration::       The configuration file.
+* Service::             Running as a system service.
+* Troubleshooting::     When something goes wrong.
 * Terminology::         Terms used with one meaning throughout.
 * Needs::               Why Escape Pod exists.
 * Requirements::        What Escape Pod shall do.
 * Design::              How Escape Pod does it (gate G2).
 * Interfaces::          The interface control document.
+* Migrating from xcape::  Mapping strings and flags.
+* Index::               Concepts.
 @end menu
+
+@include user.texi
 
 @node Terminology
 @chapter Terminology
@@ -165,5 +180,10 @@ is Linux; the language is Rust.
 @include requirements.texi
 @include design.texi
 @include interfaces.texi
+@include migration.texi
+
+@node Index
+@unnumbered Index
+@printindex cp
 
 @bye

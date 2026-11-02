@@ -84,6 +84,45 @@ def forbid-gate []: nothing -> bool {
     $ok
 }
 
+# Inspects the packaging (Standard §21.1 inspection, run on every change):
+# the service account, the sandbox, the no-restart rule, udev rules scoped
+# to group escapepod, and no `input` group membership anywhere.
+# Verifies: ESC-SRS-069, ESC-SRS-070, ESC-SRS-071, ESC-SRS-072, ESC-SRS-073
+export def packaging-findings []: nothing -> list<string> {
+    let unit = (open --raw packaging/systemd/escapepod.service | lines | each { str trim })
+    let has = { |line: string| $line in $unit }
+    let rules = (
+        open --raw packaging/udev/70-escapepod.rules | lines
+        | where { |l| not ($l | str starts-with "#") and ($l | str trim | is-not-empty) }
+    )
+    mut found = []
+    for want in ["User=escapepod" "RestrictAddressFamilies=AF_UNIX AF_NETLINK" "Restart=on-failure" "RestartPreventExitStatus=6"] {
+        if not (do $has $want) { $found = ($found | append $"escapepod.service lacks `($want)`") }
+    }
+    let groups = ($rules | parse -r 'GROUP="(?<g>[^"]+)"' | get g | append ($rules | parse -r 'g:(?<g>[a-z_-]+):' | get g) | uniq)
+    if ($groups != [escapepod]) {
+        $found = ($found | append $"udev rules grant groups ($groups | str join ', '); only escapepod is allowed")
+    }
+    let input = (
+        glob "packaging/**/*" | where { |f| ($f | path type) == file }
+        | each { |f| open --raw $f | lines | where { |l| (
+            ($l =~ 'extraGroups.*"input"') or ($l =~ '^m \S+ input\b')
+            or ($l =~ 'usermod .*-aG? *input') or ($l =~ 'gpasswd -a .* input')
+        ) } }
+        | flatten
+    )
+    if ($input | is-not-empty) {
+        $found = ($found | append $"packaging adds an account to `input`: ($input | str join '; ')")
+    }
+    $found
+}
+
+def packaging-gate []: nothing -> bool {
+    let f = (packaging-findings)
+    for x in $f { print -e $"error: ($x)" }
+    $f | is-empty
+}
+
 # The tracked files of the repository at `dir` whose index copy holds a CR
 # byte (Standard §6.5). Verifies: ESC-SRS-008
 export def crlf-files [dir: string = "."]: nothing -> list<string> {
@@ -119,8 +158,8 @@ def skill-gate []: nothing -> bool {
 }
 
 # Fails when the manual does not build to Info and HTML, or when either
-# build prints a warning. PDF needs TeX and is built by the workflow's docs
-# job.
+# build prints a warning. PDF needs TeX: the opt-in `pdf` gate and the
+# workflow's docs job. Verifies: ESC-SRS-078
 def manual-gate []: nothing -> bool {
     let info = (do { ^makeinfo --no-split -o /dev/null doc/escapepod.texi } | complete)
     let html = (
@@ -137,6 +176,28 @@ def manual-gate []: nothing -> bool {
     $ok
 }
 
+# Builds the PDF manual with TeX from nixpkgs and fails on any TeX
+# warning (overfull, underfull, undefined). Verifies: ESC-SRS-078
+def pdf-gate []: nothing -> bool {
+    let dir = (^mktemp -d | str trim)
+    let texinfo = (^nix build --no-link --print-out-paths nixpkgs#texinfo | str trim)
+    let run = (
+        with-env { TEXINPUTS: $"($texinfo)/texmf-dist/tex/texinfo:" } {
+            do {
+                cd doc
+                ^nix shell nixpkgs#texliveSmall nixpkgs#texinfo -c texi2pdf --batch $"--build-dir=($dir)/build" -o $"($dir)/escapepod.pdf" escapepod.texi
+            } | complete
+        }
+    )
+    let warnings = ($run.stdout + $run.stderr | lines | where { |l| $l =~ '^(Overfull|Underfull)|Warning' })
+    rm -rf $dir
+    if $run.exit_code != 0 or ($warnings | is-not-empty) {
+        print -e $"error: gate pdf failed \(exit ($run.exit_code)\)"
+        print -e ($warnings | str join "\n")
+    }
+    $run.exit_code == 0 and ($warnings | is-empty)
+}
+
 # Every gate, in run order. The cargo gates (fmt to deny) are the
 # merge-blocking set. Verifies: ESC-SRS-001, ESC-SRS-007
 def gates []: nothing -> record {
@@ -148,7 +209,10 @@ def gates []: nothing -> record {
         skill: { skill-gate }
         reuse: { run-cmd reuse { ^reuse lint } }
         srs: { run-cmd srs { ^nu tools/srs.nu --check } }
+        packaging: { packaging-gate }
+        guix-crates: { run-cmd guix-crates { ^nu tools/guix-crates.nu --check } }
         manual: { manual-gate }
+        pdf: { pdf-gate }
         tools: {
             [
                 (run-cmd tools { ^nu tools/tests/trace.nu })
@@ -181,6 +245,7 @@ def gates []: nothing -> record {
                 }
             }
         }
+        vm: { run-cmd vm { ^nix build --no-link -L .#checks.x86_64-linux.nixos } }
         hardware: {
             run-cmd hardware {
                 with-env { ESCAPEPOD_HW_REQUIRE: "1" } {
@@ -192,9 +257,10 @@ def gates []: nothing -> record {
     }
 }
 
-# Gates run only when named with --only: they need hardware access
-# (/dev/uinput and /dev/input), so never in the default run.
-const OPT_IN = [hardware]
+# Gates run only when named with --only: hardware needs /dev/uinput and
+# /dev/input; pdf fetches TeX through nix; vm builds and boots the NixOS
+# VM test. None is in the default run.
+const OPT_IN = [hardware pdf vm]
 
 # Runs every gate (or the ones named by --only) and exits 1 if any fails.
 def main [

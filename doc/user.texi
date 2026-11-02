@@ -1,0 +1,178 @@
+@c SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+@c SPDX-License-Identifier: CC-BY-SA-4.0
+
+@node Invoking
+@chapter Invoking Escape Pod
+@cindex invoking
+
+@example
+escapepod daemon run [--map @var{MAP}] [--tap-timeout @var{MS}]
+                     [--backend auto|evdev|x11] [--yes] [--dry-run]
+escapepod daemon status [--socket @var{PATH}]
+escapepod event monitor [--all-keys] [--map @var{MAP}]
+escapepod device list
+escapepod config check [--config @var{PATH}] [--map @var{MAP}]
+escapepod schema [@var{noun} [@var{verb}]]
+escapepod describe
+@end example
+
+The quickest start, in an X11 or Wayland session with device access:
+
+@example
+escapepod daemon run --map 'Caps_Lock=Escape' --dry-run
+escapepod daemon run --map 'Caps_Lock=Escape'
+@end example
+
+The first command shows which keyboards would be grabbed and grabs
+nothing; the second runs the daemon.  Tapping Caps Lock then sends Escape.
+To make Caps Lock also act as Control when held, use a configuration file
+(@pxref{Configuration}).
+
+@table @code
+@item daemon run
+Creates the virtual keyboard, grabs every matched keyboard once no key is
+down on it, and applies the mapping until it receives @code{SIGTERM} or
+@code{SIGINT}.  @code{SIGHUP} reloads the configuration.  Off a terminal or
+under an AI agent it needs @option{--yes}.
+@item daemon status
+Asks the running daemon for its devices and the number of keys it holds.
+@item event monitor
+Prints each key event of a managed key and the decision taken (hold, tap,
+used, timeout, remap).  Other keys print as @samp{other}; @option{--all-keys}
+shows them too, on a terminal only.
+@item device list
+Lists input devices from sysfs with what the daemon would do with each:
+@samp{grab}, @samp{read} (pointers), @samp{ignored}, @samp{own} (an Escape
+Pod virtual keyboard) or @samp{none}.  It needs no device access.
+@item config check
+Validates the configuration and prints the resulting mappings; it touches
+no device.
+@item schema
+@itemx describe
+The machine-readable surface for scripts and AI agents.
+@end table
+
+Every command accepts the global flags listed in @ref{CLI interface}.  In
+a pipe or under an agent, output is JSON; errors are one JSON object on
+standard error with a @code{hint} to run next.  Exit codes: 0 success, 1
+failure, 2 usage or configuration error, 3 not found, 4 no permission or no
+backend, 5 another daemon running, 6 emergency release.
+
+@section The emergency chord
+@cindex emergency chord
+
+Hold Backspace, Escape and Enter together to make the daemon release every
+key and every grab and exit with code 6.  Use it if a mapping ever leaves a
+keyboard unusable.  The service does not restart after it.  The chord is set
+by @code{emergency_chord} in the configuration.
+
+@node Configuration
+@chapter Configuration
+@cindex configuration
+
+The configuration is a TOML file.  Escape Pod reads the path given with
+@option{--config}, else @file{~/.config/escapepod/config.toml} (under
+@env{XDG_CONFIG_HOME}), else @file{/etc/escapepod/config.toml}.  Check a
+file before use with @code{escapepod config check}; an unknown key is an
+error that names its line and column.
+
+@verbatiminclude config.example.toml
+
+@table @code
+@item [[dual_role]]
+A key with two jobs: @code{key} is the physical key, @code{hold} the key it
+acts as while held (default: itself), @code{tap} the key a quick, lone tap
+sends.
+@item [[remap]]
+A one-to-one remap from @code{from} to @code{to}, for presses, releases
+and autorepeat.
+@item tap_timeout_ms
+How long, in milliseconds, a press may last and still count as a tap; 50
+to 2000, default 200.  @option{--tap-timeout} overrides it.
+@item protected
+Keys never mapped.  An Orca screen-reader modifier key is protected
+automatically, with a warning.
+@item emergency_chord
+@xref{Invoking}.
+@item [[device]]
+Rules for one keyboard, chosen by @code{name} (as @code{device list} shows
+it) or by @code{id = "VVVV:PPPP"}.  Its @code{dual_role}, @code{remap} and
+@code{tap_timeout_ms} replace the global ones; @code{ignore = true} leaves
+the keyboard alone.
+@item grab
+@samp{all} (default) or @samp{listed}, to grab only the keyboards a
+@code{[[device]]} rule names.
+@end table
+
+Key names are kernel names such as @samp{KEY_CAPSLOCK}, the same without
+the prefix (@samp{capslock}), or the X keysym names xcape uses
+(@samp{Caps_Lock}, @samp{Control_L}, @samp{Escape}).
+
+@node Service
+@chapter Running as a service
+@cindex service
+@cindex privileges
+
+The packages install a systemd unit, @code{escapepod.service}, that runs
+the daemon as the @samp{escapepod} system account.  Only that account can
+read keyboards and write @file{/dev/uinput}: the udev rule grants access
+to group @samp{escapepod} and no other, and no login account is added to
+the @samp{input} group.  Your own programs therefore gain no ability to
+read your keystrokes by installing Escape Pod.
+
+@enumerate
+@item Write @file{/etc/escapepod/config.toml}.
+@item @code{systemctl enable --now escapepod.service}.
+@item To read the daemon's status, add your account to @samp{escapepod-ctl}:
+it grants the status socket and nothing else.
+@end enumerate
+
+On NixOS, use the module:
+
+@example
+services.escapepod = @{
+  enable = true;
+  package = escapepod.packages.$@{pkgs.system@}.default;
+  settings.dual_role = [ @{
+    key = "Caps_Lock";
+    hold = "Control_L";
+    tap = "Escape";
+  @} ];
+  statusUsers = [ "alice" ];
+@};
+@end example
+
+The service has no network (@code{RestrictAddressFamilies=AF_UNIX
+AF_NETLINK}) and does not restart after the emergency chord.  It reads no
+user's files, so it cannot see an Orca setting: Orca users should run a
+session daemon instead (@code{escapepod daemon run} from the session) or
+list Orca's modifier key under @code{protected}.
+
+@node Troubleshooting
+@chapter Troubleshooting
+@cindex troubleshooting
+
+@table @asis
+@item @samp{BACKEND_UNAVAILABLE} (exit 4)
+No @file{/dev/uinput} access, no readable keyboard, and no @env{DISPLAY}.
+Run the service (@pxref{Service}), or in an X session use
+@option{--backend x11}.
+@item @samp{DEVICE_BUSY}
+Another program, often another remapper, holds a keyboard's grab.  Stop it,
+or exclude that keyboard with a @code{[[device]]} rule.
+@item A key seems stuck
+Press and release it.  If the keyboard is unusable, hold Backspace, Escape
+and Enter (@pxref{Invoking}).
+@item Nothing happens on tap
+Check @code{escapepod event monitor}: @samp{used} means another key or a
+click came between press and release; @samp{timeout} means the press was
+longer than @code{tap_timeout_ms}.
+@item @samp{X11_REMAP_UNSUPPORTED} (exit 2)
+The X11 backend cannot remap keys.  Remap with
+@command{setxkbmap -option}, for example @code{setxkbmap -option
+ctrl:nocaps}, and map the result as a dual-role key.
+@item Unplugging a keyboard sends a stray tap
+Known issue (#11): an unplug within the tap timeout of a dual-role press
+taps once.
+@end table
+

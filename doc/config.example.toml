@@ -1,0 +1,12 @@
+# Example Escape Pod configuration.
+# Service: /etc/escapepod/config.toml
+# Session: ~/.config/escapepod/config.toml
+
+# A tap must end within this many ms (50 to 2000).
+tap_timeout_ms = 200
+
+# Caps Lock: Escape on a tap, Control when held.
+[[dual_role]]
+key = "Caps_Lock"
+hold = "Control_L"
+tap = "Escape"
