@@ -10,3 +10,9 @@ tap_timeout_ms = 200
 key = "Caps_Lock"
 hold = "Control_L"
 tap = "Escape"
+
+# Leave other remappers' virtual keyboards alone: grabbing xremap's output
+# while xremap grabs Escape Pod's would pass keys back and forth.
+[[device]]
+name = "xremap"
+ignore = true
