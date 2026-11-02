@@ -38,7 +38,7 @@ requirements = ["ESC-SRS-007", "ESC-SRS-008"]
 [[plan]]
 id = "P-007"
 rule = "landed"
-reason = "Tooling for ESC-SRS-085, which P-041 verifies at M6"
+reason = "Tooling for ESC-SRS-085, which P-041 verifies at M7"
 
 [[plan]]
 id = "P-008"
@@ -110,7 +110,7 @@ requirements = ["ESC-SRS-043", "ESC-SRS-044", "ESC-SRS-045"]
 
 [[plan]]
 id = "P-024"
-requirements = ["ESC-SRS-053", "ESC-SRS-057"]
+requirements = ["ESC-SRS-057"]
 
 [[plan]]
 id = "P-025"
@@ -194,3 +194,29 @@ reason = "Registry rows in the Projects repository"
 [[plan]]
 id = "P-044"
 requirements = ["ESC-SRS-042"]
+
+[[plan]]
+id = "P-045"
+rule = "landed"
+reason = "Gate re-entry: done when it lands with its gate record"
+
+[[plan]]
+id = "P-046"
+requirements = ["ESC-SRS-105", "ESC-SRS-106"]
+
+[[plan]]
+id = "P-047"
+requirements = ["ESC-SRS-053", "ESC-SRS-107", "ESC-SRS-108", "ESC-SRS-109"]
+
+[[plan]]
+id = "P-048"
+requirements = ["ESC-SRS-110", "ESC-SRS-112"]
+
+[[plan]]
+id = "P-049"
+requirements = ["ESC-SRS-111"]
+
+[[plan]]
+id = "P-050"
+rule = "landed"
+reason = "Retiring xremap: done when the maintainer's configuration carries the side buttons"

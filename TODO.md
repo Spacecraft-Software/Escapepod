@@ -14,7 +14,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Escape Pod — TODO
 
-MVP: M0–M6 — Escape Pod v0.1
+MVP: M0–M7 — Escape Pod v0.1
 
 Executable tasks for [`PLAN.md`](PLAN.md); each cites its work package. One task is one
 branch and one PR unless noted. **Done rule:** a task is ticked when its PR is squash-merged
@@ -147,7 +147,8 @@ when that test passes. Identifiers are permanent.
       vendor/product/name tag (`ESC-SRS-044, 045`)
 - [x] T-066 P-024 `poll(2)` loop over devices, inotify, signal fd, socket; no timeout
       when idle; `doc/records/idle-analysis.md` (`ESC-SRS-057`)
-- [x] T-067 P-024 Pointer devices opened read-only without grab (`ESC-SRS-053`)
+- [x] T-067 P-024 Pointer devices opened read-only without grab (original `ESC-SRS-053`;
+      verification of the amended requirement moves to T-113)
 - [x] T-068 P-025 `HeldKeys` ledger and `release_all()`; SIGTERM/SIGINT path ≤ 100 ms
       (`ESC-SRS-046`)
 - [x] T-069 P-025 Drop guard on the daemon releasing held keys during a panic's unwind
@@ -198,7 +199,29 @@ when that test passes. Identifiers are permanent.
 - [x] T-095 P-037 `make -C doc` builds Info/HTML/PDF with zero warnings; CI docs job
       (`ESC-SRS-078`)
 
-## M6 — Verification and release gate
+## M6 — Mouse buttons and test safety
+
+- [ ] T-109 P-045 ESC-SRS-105–112 and ESC-NEED-009 in `doc/requirements.toml` and the manual,
+      ESC-SRS-053 amended, release gate renumbered M7; G1 re-entry record
+- [ ] T-110 P-046 Button map in `Rules` with validation; `Session` button path through the
+      ledger (`ESC-SRS-105, 106`)
+- [ ] T-111 P-046 Property test: output stays balanced with button shortcuts interleaved
+- [ ] T-112 P-047 `UinputPointer` created before any grab; exit 4 if it fails (`ESC-SRS-109`)
+- [ ] T-113 P-047 Grab matched pointers once idle; pass unmapped events through in order;
+      unmatched pointers read-only (`ESC-SRS-053, 107, 108`)
+- [ ] T-114 P-047 Pointer faults, removal, hotplug and reload on the keyboard paths
+- [ ] T-115 P-048 `[[button]]` config, global and per device, with limits (`ESC-SRS-112`);
+      `config check`, `--dry-run`, `device list`, `schema`, ICD, `schemas/config.schema.json`
+- [ ] T-116 P-048 X11 backend refuses button rules (`ESC-SRS-110`)
+- [ ] T-117 P-049 `--only-device` allowlist (`ESC-SRS-111`); the hardware tests pass it
+- [ ] T-118 P-049 Hardware tests in the NixOS VM by default; host run only with
+      `ESCAPEPOD_HW_ON_HOST=1`
+- [ ] T-119 P-049 VM test: mouse fixture, side button → Super+Control+Right, motion passes
+- [ ] T-120 P-050 Manual: mouse buttons section, xremap migration note, NixOS example
+- [ ] T-121 P-050 Maintainer's configuration: side buttons mapped; xremap ignore rule dropped
+      once xremap is removed
+
+## M7 — Verification and release gate
 
 - [ ] T-096 P-038 `tools/latency-gate.nu` and the reference workload script
       (`ESC-SRS-079`)
@@ -213,7 +236,7 @@ when that test passes. Identifiers are permanent.
       (`ESC-SRS-086`)
 - [ ] T-103 P-042 Clean-install validation from NixOS VM, Guix container, Arch container;
       notes in the manifest (`ESC-SRS-087`)
-- [ ] T-104 P-042 Validation of ESC-NEED-001–008 on the reference machine from installed
+- [ ] T-104 P-042 Validation of ESC-NEED-001–009 on the reference machine from installed
       packaging
 - [ ] T-105 P-042 `CHANGELOG.md`, `doc/release-0.1.md` manifest, anomalies filed,
       `COMPLIANCE.md` re-read, G3 record

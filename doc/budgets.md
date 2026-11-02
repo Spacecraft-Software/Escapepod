@@ -17,4 +17,4 @@ end-to-end readings (T-096, T-097).
 | 2026-11-01 | M1 engine PR | 65 ns median per `Session::on_key` (`cargo bench -p escapepod-core`, 31 runs of 100 000 events, the reference workload's mix) | 1 ms p99 added latency, end to end | 0.007% |
 
 The engine is not the latency budget's risk; the uinput write and the kernel round trip are,
-and they are measured at M6.
+and they are measured at M7.

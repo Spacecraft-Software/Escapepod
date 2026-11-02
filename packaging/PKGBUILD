@@ -4,7 +4,7 @@
 #
 # Arch Linux package for Escape Pod (Standard §5.5; ESC-SRS-077). Build with
 # `makepkg` from packaging/. Until the first release the source is this
-# checkout; the release (M6, T-102) replaces it with the signed tag's tarball
+# checkout; the release (M7, T-102) replaces it with the signed tag's tarball
 # and its SHA-256. The install hook runs systemd-sysusers, systemd-tmpfiles
 # and the udev reload; no login account is ever added to `input`.
 
