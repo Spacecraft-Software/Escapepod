@@ -69,7 +69,7 @@ jobs:
           version: ${{ env.NU_VERSION }}
       - name: reuse
         run: pipx install reuse
-      - run: nu tools/ci.nu --only posture,category,forbid,crlf,skill,reuse,srs,tools,trace,progress
+      - run: nu tools/ci.nu --only posture,category,forbid,crlf,skill,reuse,srs,packaging,tools,trace,progress
 
   docs:
     name: manual (Info, HTML, PDF)

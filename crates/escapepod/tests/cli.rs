@@ -453,6 +453,10 @@ fn version_carries_the_attribution() {
         .output()
         .unwrap();
     let text = String::from_utf8_lossy(&o.stdout);
+    assert!(
+        text.starts_with("---\n"),
+        "--format yaml is honoured: {text}"
+    );
     assert!(text.contains("Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"));
     let doc = stdout_doc(&cmd(&root).args(["--version", "--json"]).output().unwrap());
     assert_eq!(
@@ -873,4 +877,28 @@ fn auto_with_no_backend_exits_4() {
         .unwrap();
     assert_eq!(o.status.code(), Some(4));
     assert_eq!(error_of(&o)["error"]["code"], "BACKEND_UNAVAILABLE");
+}
+
+// Verifies: ESC-SRS-089
+/// The committed schemas are valid Draft 2020-12, and the shipped example
+/// configuration validates against the configuration schema.
+#[test]
+fn committed_schemas_are_valid_and_match_the_example() {
+    for f in ["envelope", "config", "status"] {
+        let s: Value = serde_json::from_str(
+            &fs::read_to_string(format!("../../schemas/{f}.schema.json")).unwrap(),
+        )
+        .unwrap();
+        jsonschema::meta::validate(&s).unwrap_or_else(|e| panic!("{f}: {e}"));
+    }
+    let schema: Value =
+        serde_json::from_str(&fs::read_to_string("../../schemas/config.schema.json").unwrap())
+            .unwrap();
+    let example: toml::Table =
+        toml::from_str(&fs::read_to_string("../../doc/config.example.toml").unwrap()).unwrap();
+    let example = serde_json::to_value(example).unwrap();
+    let v = jsonschema::validator_for(&schema).unwrap();
+    assert!(v.is_valid(&example), "{example}");
+    let bad = serde_json::json!({ "dual_role": [{ "key": "Caps_Lock", "tapp": "Escape" }] });
+    assert!(!v.is_valid(&bad));
 }

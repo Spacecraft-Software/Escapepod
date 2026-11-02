@@ -1,0 +1,26 @@
+@c SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+@c SPDX-License-Identifier: CC-BY-SA-4.0
+
+@node Migrating from xcape
+@appendix Migrating from xcape
+@cindex xcape
+
+Escape Pod accepts xcape's mapping string and timeout:
+
+@table @asis
+@item @code{xcape -e 'Control_L=Escape'}
+@code{escapepod daemon run --map 'Control_L=Escape'}
+@item @code{xcape -t 300 -e ...}
+Add @code{--tap-timeout 300}.
+@item @code{xcape -d}
+@code{escapepod event monitor} shows each decision.
+@item @code{setxkbmap -option ctrl:nocaps} with @code{xcape -e 'Control_L=Escape'}
+One @code{[[dual_role]]} with @code{key = "Caps_Lock"},
+@code{hold = "Control_L"} and @code{tap = "Escape"}, which also works on
+Wayland and the console.
+@end table
+
+Differences: multi-key taps (@samp{A|B}) are refused; the hold key goes down
+at once and a tap is added on release, as in xcape; a click between press
+and release cancels the tap, which xcape did not do.  On Wayland and the
+console Escape Pod works where xcape cannot.

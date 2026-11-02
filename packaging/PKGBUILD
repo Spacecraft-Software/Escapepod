@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Maintainer: Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+#
+# Arch Linux package for Escape Pod (Standard §5.5; ESC-SRS-077). Build with
+# `makepkg` from packaging/. Until the first release the source is this
+# checkout; the release (M6, T-102) replaces it with the signed tag's tarball
+# and its SHA-256. The install hook runs systemd-sysusers, systemd-tmpfiles
+# and the udev reload; no login account is ever added to `input`.
+
+pkgname=escapepod
+pkgver=0.0.0
+pkgrel=1
+pkgdesc="Tap a key for Escape, hold it for Control (the xcape successor)"
+arch=('x86_64' 'aarch64')
+url="https://EscapePod.SpacecraftSoftware.org/"
+license=('GPL-3.0-or-later')
+depends=('gcc-libs' 'acl' 'systemd')
+makedepends=('cargo' 'texinfo')
+install=escapepod.install
+source=()
+sha256sums=()
+
+_root() {
+  cd "$startdir/.."
+}
+
+prepare() {
+  _root
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  _root
+  export RUSTFLAGS="--remap-path-prefix=$PWD=escapepod-$pkgver ${RUSTFLAGS:-}"
+  cargo build --frozen --release -p escapepod
+  makeinfo --no-split -o target/escapepod.info doc/escapepod.texi
+}
+
+check() {
+  _root
+  cargo test --frozen --workspace
+}
+
+package() {
+  _root
+  install -Dm755 target/release/escapepod "$pkgdir/usr/bin/escapepod"
+  install -Dm644 target/escapepod.info "$pkgdir/usr/share/info/escapepod.info"
+  install -Dm644 packaging/systemd/escapepod.service "$pkgdir/usr/lib/systemd/system/escapepod.service"
+  sed -i 's|@BINDIR@|/usr/bin|' "$pkgdir/usr/lib/systemd/system/escapepod.service"
+  install -Dm644 packaging/udev/70-escapepod.rules "$pkgdir/usr/lib/udev/rules.d/70-escapepod.rules"
+  sed -i 's|@SETFACL@|/usr/bin/setfacl|' "$pkgdir/usr/lib/udev/rules.d/70-escapepod.rules"
+  install -Dm644 packaging/sysusers.d/escapepod.conf "$pkgdir/usr/lib/sysusers.d/escapepod.conf"
+  install -Dm644 packaging/tmpfiles.d/escapepod.conf "$pkgdir/usr/lib/tmpfiles.d/escapepod.conf"
+  install -Dm644 doc/config.example.toml "$pkgdir/usr/share/doc/escapepod/config.example.toml"
+}

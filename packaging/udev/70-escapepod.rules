@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Escape Pod device access, for group escapepod and no other group
+# (ESC-SRS-070). Event devices keep their owner and group; an ACL entry
+# adds read access for escapepod only. /dev/uinput moves to group escapepod.
+# @SETFACL@ is replaced by the packaging with the path of setfacl(1).
+SUBSYSTEM=="input", KERNEL=="event*", ACTION=="add|change", RUN+="@SETFACL@ -m g:escapepod:r $devnode"
+KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="escapepod", MODE="0660", OPTIONS+="static_node=uinput"

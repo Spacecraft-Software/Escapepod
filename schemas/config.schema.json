@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://EscapePod.SpacecraftSoftware.org/schema/config/1",
+  "title": "Escape Pod configuration file, interface version 1",
+  "description": "The TOML configuration, as JSON. Every table rejects unknown keys.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "key": { "type": "string", "minLength": 1, "description": "A kernel key name, the same without KEY_, or an X keysym name" },
+    "timeout": { "type": "integer", "minimum": 50, "maximum": 2000 },
+    "dual_role": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "tap"],
+        "properties": { "key": { "$ref": "#/$defs/key" }, "hold": { "$ref": "#/$defs/key" }, "tap": { "$ref": "#/$defs/key" } }
+      }
+    },
+    "remap": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to"],
+        "properties": { "from": { "$ref": "#/$defs/key" }, "to": { "$ref": "#/$defs/key" } }
+      }
+    }
+  },
+  "properties": {
+    "grab": { "enum": ["all", "listed"] },
+    "tap_timeout_ms": { "$ref": "#/$defs/timeout" },
+    "emergency_chord": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/key" } },
+    "protected": { "type": "array", "items": { "$ref": "#/$defs/key" } },
+    "dual_role": { "$ref": "#/$defs/dual_role" },
+    "remap": { "$ref": "#/$defs/remap" },
+    "device": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "oneOf": [{ "required": ["name"] }, { "required": ["id"] }],
+        "properties": {
+          "name": { "type": "string" },
+          "id": { "type": "string", "pattern": "^[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}$" },
+          "ignore": { "type": "boolean" },
+          "tap_timeout_ms": { "$ref": "#/$defs/timeout" },
+          "dual_role": { "$ref": "#/$defs/dual_role" },
+          "remap": { "$ref": "#/$defs/remap" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://EscapePod.SpacecraftSoftware.org/schema/status/1",
+  "title": "Escape Pod status socket, interface version 1",
+  "description": "One line of the status socket: the status object a client receives on connect, or an event record after subscribing with `events`.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "devices", "pointers", "held"],
+      "properties": {
+        "backend": { "enum": ["evdev"] },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "path", "grabbed"],
+            "properties": { "name": { "type": "string" }, "path": { "type": "string" }, "grabbed": { "type": "boolean" } }
+          }
+        },
+        "pointers": { "type": "integer", "minimum": 0 },
+        "held": { "type": "integer", "minimum": 0 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "device", "key", "value"],
+      "properties": {
+        "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "device": { "type": "string" },
+        "key": { "type": "string", "pattern": "^KEY_|^BTN_" },
+        "value": { "enum": ["press", "release", "repeat"] },
+        "decision": { "type": "string" }
+      }
+    }
+  ]
+}

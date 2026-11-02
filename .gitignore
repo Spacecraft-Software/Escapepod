@@ -16,3 +16,6 @@ chat/
 /doc/escapepod.pdf
 /doc/escapepod.*[a-z][a-z]
 !/doc/escapepod.texi
+
+# nix build output.
+/result

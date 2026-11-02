@@ -154,16 +154,16 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 
 ## M5 — Privileges, packaging and manual
 
-- [ ] P-034 System integration: `packaging/systemd/escapepod.service` (`User=escapepod`,
+- [x] P-034 System integration: `packaging/systemd/escapepod.service` (`User=escapepod`,
       `RestrictAddressFamilies=AF_UNIX AF_NETLINK`, `RestartPreventExitStatus=6`),
       `sysusers.d`, `tmpfiles.d`, `packaging/udev/70-escapepod.rules` (group `escapepod`
       only), no `input` group membership anywhere — ESC-SRS-069, 070, 071, 072, 073
-- [ ] P-035 NixOS module `services.escapepod` + `nixosTests.escapepod` VM test —
+- [x] P-035 NixOS module `services.escapepod` + `nixosTests.escapepod` VM test —
       ESC-SRS-074
 - [ ] P-036 Packaging triad `packaging/guix.scm`, `packaging/default.nix`,
       `packaging/PKGBUILD`, each with version, SHA-256 and `install-info` hook —
       ESC-SRS-075, 076, 077
-- [ ] P-037 Manual: user chapters (Invoking, Configuration, Service, Troubleshooting,
+- [x] P-037 Manual: user chapters (Invoking, Configuration, Service, Troubleshooting,
       xcape migration), `Interfaces` node completed for all seven classes with committed
       schemas under `schemas/`; builds Info, HTML, PDF with zero warnings — ESC-SRS-078, 089
 

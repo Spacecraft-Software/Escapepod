@@ -182,20 +182,20 @@ when that test passes. Identifiers are permanent.
 
 ## M5 — Privileges, packaging and manual
 
-- [ ] T-086 P-034 `escapepod.service`, `sysusers.d/escapepod.conf`,
+- [x] T-086 P-034 `escapepod.service`, `sysusers.d/escapepod.conf`,
       `tmpfiles.d/escapepod.conf` (`ESC-SRS-069, 072, 073`)
-- [ ] T-087 P-034 `70-escapepod.rules` scoped to group `escapepod`; `escapepod-ctl` for the
+- [x] T-087 P-034 `70-escapepod.rules` scoped to group `escapepod`; `escapepod-ctl` for the
       socket; packaging test asserting no `input` membership (`ESC-SRS-070, 071`)
-- [ ] T-088 P-035 NixOS module `services.escapepod`
-- [ ] T-089 P-035 `nixosTests.escapepod` VM test: service up, udev rule applied, tap works
+- [x] T-088 P-035 NixOS module `services.escapepod`
+- [x] T-089 P-035 `nixosTests.escapepod` VM test: service up, udev rule applied, tap works
       via uinput fixture (`ESC-SRS-074`)
-- [ ] T-090 P-036 `packaging/default.nix` (`ESC-SRS-076`)
-- [ ] T-091 P-036 `packaging/guix.scm` (`ESC-SRS-075`)
-- [ ] T-092 P-036 `packaging/PKGBUILD` (`ESC-SRS-077`)
-- [ ] T-093 P-037 Manual user chapters; xcape migration appendix
-- [ ] T-094 P-037 `Interfaces` node complete; `schemas/*.json` committed and validated in
+- [x] T-090 P-036 `packaging/default.nix` (`ESC-SRS-076`)
+- [x] T-091 P-036 `packaging/guix.scm` (`ESC-SRS-075`)
+- [x] T-092 P-036 `packaging/PKGBUILD` (`ESC-SRS-077`)
+- [x] T-093 P-037 Manual user chapters; xcape migration appendix
+- [x] T-094 P-037 `Interfaces` node complete; `schemas/*.json` committed and validated in
       tests (`ESC-SRS-089`)
-- [ ] T-095 P-037 `make -C doc` builds Info/HTML/PDF with zero warnings; CI docs job
+- [x] T-095 P-037 `make -C doc` builds Info/HTML/PDF with zero warnings; CI docs job
       (`ESC-SRS-078`)
 
 ## M6 — Verification and release gate

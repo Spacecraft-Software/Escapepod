@@ -339,11 +339,32 @@ impl Mode {
         data: Value,
         human: impl FnOnce(&Value, &Self) -> String,
     ) -> Result<(), AppError> {
+        self.emit_with(out, data, &[], human)
+    }
+
+    /// [`Mode::emit`], with `extra` keys added to the metadata block.
+    ///
+    /// # Errors
+    ///
+    /// As [`Mode::emit`].
+    pub fn emit_with(
+        &self,
+        out: &mut dyn Write,
+        data: Value,
+        extra: &[(&str, &str)],
+        human: impl FnOnce(&Value, &Self) -> String,
+    ) -> Result<(), AppError> {
+        let mut meta = self.metadata();
+        if let Some(o) = meta.as_object_mut() {
+            for (k, v) in extra {
+                o.insert((*k).to_owned(), (*v).into());
+            }
+        }
         let data = self.select(data)?;
         let text = match self.format {
             Format::Human => human(&data, self),
             Format::Json => {
-                let env = json!({ "metadata": self.metadata(), "data": data });
+                let env = json!({ "metadata": meta, "data": data });
                 format!("{}\n", serde_json::to_string(&env).unwrap_or_default())
             }
             Format::Jsonl => match &data {
@@ -353,7 +374,7 @@ impl Mode {
                 }),
                 other => format!("{}\n", serde_json::to_string(other).unwrap_or_default()),
             },
-            Format::Yaml => yaml(&json!({ "metadata": self.metadata(), "data": data })),
+            Format::Yaml => yaml(&json!({ "metadata": meta, "data": data })),
             Format::Csv => csv(&data),
         };
         write_all(out, text.as_bytes())

@@ -23,3 +23,11 @@ path = ["schemas/*.json"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
 SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# The example configuration, included verbatim in the manual, where an
+# inline header line would overrun the PDF page.
+[[annotations]]
+path = ["doc/config.example.toml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Mohamed Hammad <Mohamed.Hammad@SpacecraftSoftware.org>"
+SPDX-License-Identifier = "CC-BY-SA-4.0"

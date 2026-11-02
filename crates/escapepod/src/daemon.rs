@@ -786,17 +786,24 @@ mod tests {
             press(&a, &mut d, 0, KeyEvent::release(k), 2);
         }
         press(&a, &mut d, 0, KeyEvent::press(CAPS), 3);
-        let text: String = d
-            .take_records()
-            .iter()
-            .map(|r| r.to_json().to_string())
-            .collect();
+        let recs = d.take_records();
+        let text: String = recs.iter().map(|r| r.to_json().to_string()).collect();
         assert!(text.contains("KEY_CAPSLOCK"));
         for leaked in ["KEY_P", "KEY_A", "KEY_S"] {
             assert!(!text.contains(leaked), "{leaked} leaked: {text}");
         }
-        let status = d.status().to_string();
-        assert!(!status.contains("KEY_"), "status names no key: {status}");
+        let status = d.status();
+        assert!(
+            !status.to_string().contains("KEY_"),
+            "status names no key: {status}"
+        );
+        let schema: Value =
+            serde_json::from_str(include_str!("../../../schemas/status.schema.json")).unwrap();
+        let v = jsonschema::validator_for(&schema).unwrap();
+        assert!(v.is_valid(&status), "{status}");
+        for r in &recs {
+            assert!(v.is_valid(&r.to_json()), "{}", r.to_json());
+        }
     }
 }
 
