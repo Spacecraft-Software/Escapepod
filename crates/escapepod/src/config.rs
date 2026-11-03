@@ -585,10 +585,11 @@ keys = ["KEY_LEFT"]
     }
 
     fn write(text: &str) -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
             "escapepod-config-{}-{}",
             std::process::id(),
-            text.len()
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         let _ = std::fs::create_dir_all(&dir);
         let p = dir.join("config.toml");

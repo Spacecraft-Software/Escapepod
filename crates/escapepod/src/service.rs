@@ -260,9 +260,28 @@ pub fn run(
         }
         Selected::Evdev => {}
     }
-    // The virtual keyboard is created before any device is opened.
-    let mut sink = UinputKeyboard::create().map_err(|e| no_uinput(&e))?;
-    sink.enable_pointer().map_err(|e| {
+    with_outputs(
+        UinputKeyboard::create,
+        UinputKeyboard::enable_pointer,
+        |sink| {
+            evdev_loop(
+                Daemon::new(EvdevOpener, sink, cfg).restrict_devices(only_device),
+                mode,
+                io,
+                reload,
+            )
+        },
+    )
+}
+
+// Implements: ESC-SRS-109
+fn with_outputs<S>(
+    keyboard: impl FnOnce() -> io::Result<S>,
+    pointer: impl FnOnce(&mut S) -> io::Result<()>,
+    start: impl FnOnce(S) -> Result<Exit, AppError>,
+) -> Result<Exit, AppError> {
+    let mut sink = keyboard().map_err(|e| no_uinput(&e))?;
+    pointer(&mut sink).map_err(|e| {
         AppError::new(
             "BACKEND_UNAVAILABLE",
             Exit::Permission,
@@ -270,12 +289,7 @@ pub fn run(
             "human: give the escapepod account write access to /dev/uinput (manual: Service)",
         )
     })?;
-    evdev_loop(
-        Daemon::new(EvdevOpener, sink, cfg).restrict_devices(only_device),
-        mode,
-        io,
-        reload,
-    )
+    start(sink)
 }
 
 /// The backend `daemon run` uses.
@@ -732,6 +746,31 @@ pub fn monitor(
 
 #[cfg(test)]
 mod tests {
+    // Verifies: ESC-SRS-109
+    #[test]
+    fn pointer_creation_failure_exits_4_before_device_startup() {
+        use std::cell::Cell;
+        let started = Cell::new(false);
+        let keyboard_created = Cell::new(false);
+        let result = super::with_outputs(
+            || {
+                keyboard_created.set(true);
+                Ok(())
+            },
+            |()| Err(std::io::ErrorKind::PermissionDenied.into()),
+            |()| {
+                started.set(true);
+                Ok(crate::error::Exit::Success)
+            },
+        );
+        let error = result.unwrap_err();
+        assert_eq!(error.exit().code(), 4);
+        assert!(keyboard_created.get());
+        assert!(
+            !started.get(),
+            "device enumeration and grabs must not start"
+        );
+    }
     use super::*;
 
     // Verifies: ESC-SRS-063, ESC-SRS-064, ESC-SRS-100

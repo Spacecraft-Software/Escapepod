@@ -133,6 +133,9 @@ impl AsFd for EvdevPointer {
 }
 
 impl Pointer for EvdevPointer {
+    fn ungrab(&mut self) -> io::Result<()> {
+        self.dev.ungrab()
+    }
     fn supports_forwarding(&self) -> bool {
         Self::supports_forwarding(self)
     }

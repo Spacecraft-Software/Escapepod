@@ -193,6 +193,14 @@ No @file{/dev/uinput} access, no readable keyboard, and no @env{DISPLAY}.
 Run the service (@pxref{Service}), or in an X session use
 @option{--backend x11}.
 @item @samp{DEVICE_BUSY}
+Another program holds a device's exclusive grab.
+@item @samp{POINTER_UNSUPPORTED}
+The configured pointer has capabilities the virtual pointer cannot preserve.
+It stays ungrabbed; use a supported relative mouse for button shortcuts.
+@item Grab and release notices
+@samp{DEVICE_GRABBED} and @samp{DEVICE_RELEASED} identify both keyboards
+and mapped pointers entering and leaving exclusive operation.
+@item Other remappers
 Another program, often another remapper, holds a keyboard's grab.  Stop it,
 or exclude that keyboard with a @code{[[device]]} rule.
 @item A key seems stuck

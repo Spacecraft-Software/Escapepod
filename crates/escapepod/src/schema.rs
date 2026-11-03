@@ -358,7 +358,7 @@ pub fn schema(noun: Option<&str>, verb: Option<&str>) -> Result<Value, AppError>
             "commands": many.iter().map(|c| command_doc(c)).collect::<Vec<_>>(),
             "exit_codes": exit_codes(),
             "error_codes": ["INVALID_ARGUMENT", "MISSING_ARGUMENT", "NOT_FOUND", "PERMISSION_DENIED", "CONFLICT", "BACKEND_UNAVAILABLE", "X11_REMAP_UNSUPPORTED", "DISPLAY_LOST", "INTERNAL_ERROR"],
-            "diagnostic_codes": ["TUI_FALLBACK", "UNKNOWN_THEME", "SCREEN_READER_KEY", "NO_MAPPING", "DEVICE_FAULT", "RELOAD_FAILED", "RELOADED", "DEVICE_GRABBED", "DEVICE_RELEASED", "EMERGENCY_RELEASE"],
+            "diagnostic_codes": ["TUI_FALLBACK", "UNKNOWN_THEME", "SCREEN_READER_KEY", "NO_MAPPING", "DEVICE_FAULT", "RELOAD_FAILED", "RELOADED", "DEVICE_GRABBED", "DEVICE_RELEASED", "EMERGENCY_RELEASE", "POINTER_UNSUPPORTED"],
         })),
     }
 }

@@ -65,6 +65,12 @@ pub trait Pointer {
     fn grab(&mut self) -> io::Result<()> {
         Err(io::ErrorKind::Unsupported.into())
     }
+    /// Releases exclusivity without reading queued events.
+    /// # Errors
+    /// Returns the device ioctl error.
+    fn ungrab(&mut self) -> io::Result<()> {
+        Err(io::ErrorKind::Unsupported.into())
+    }
     /// Reads complete frames, including synchronization reports.
     /// # Errors
     /// Returns the device read error.

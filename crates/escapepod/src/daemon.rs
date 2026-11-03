@@ -344,8 +344,8 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
         match p.read_presses() {
             Ok(0) => {}
             Ok(_) => self.session.on_pointer_press(now),
-            Err(_) => {
-                self.remove_pointer(id);
+            Err(error) => {
+                self.pointer_fault(id, &error);
             }
         }
     }
@@ -372,6 +372,19 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             self.remove_pointer(id);
             return;
         }
+        let mut down = BTreeSet::new();
+        for event in &stale {
+            if event.kind == 1 {
+                if event.value == 0 {
+                    down.remove(&event.code);
+                } else {
+                    down.insert(event.code);
+                }
+            }
+        }
+        if !down.is_empty() || !pointer.is_idle().unwrap_or(false) {
+            return;
+        }
         if let Err(error) = pointer.grab() {
             self.note(
                 Severity::Warn,
@@ -381,13 +394,28 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             self.waiting_pointers.remove(&id);
             return;
         }
+        // Do not consume events after acquisition until the state is safe.
+        // Releases still pending in the kernel must reach the desktop.
+        if !pointer.is_idle().unwrap_or(false) {
+            if pointer.ungrab().is_err() {
+                self.remove_pointer(id);
+            }
+            return;
+        }
         let rules = self.config.rules_for(info).cloned().unwrap_or_default();
+        let message = format!("grabbed {} ({})", info.name, info.path.display());
         self.session.add_pointer(id, rules);
         self.waiting_pointers.remove(&id);
         self.grabbed_pointers.insert(id);
+        self.note(Severity::Info, "DEVICE_GRABBED", message);
     }
 
     fn remove_pointer(&mut self, id: DeviceId) {
+        let grabbed = self.grabbed_pointers.contains(&id);
+        let message = self
+            .pointers
+            .get(&id)
+            .map(|(info, _)| format!("released {} ({})", info.name, info.path.display()));
         self.session.remove_device(id, &mut self.out);
         self.flush();
         let mut releases = Vec::new();
@@ -404,6 +432,20 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
         self.grabbed_pointers.remove(&id);
         self.waiting_pointers.remove(&id);
         self.pointers.remove(&id);
+        if grabbed && let Some(message) = message {
+            self.note(Severity::Info, "DEVICE_RELEASED", message);
+        }
+    }
+
+    fn pointer_fault(&mut self, id: DeviceId, error: &io::Error) {
+        if error.raw_os_error() != Some(19) {
+            self.note(
+                Severity::Warn,
+                "DEVICE_FAULT",
+                format!("reading pointer failed: {error}; its grab is released"),
+            );
+        }
+        self.remove_pointer(id);
     }
 
     fn mapped_pointer_ready(&mut self, id: DeviceId, now: Instant) {
@@ -411,8 +453,8 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
         let Some((_, pointer)) = self.pointers.get_mut(&id) else {
             return;
         };
-        if pointer.read_events(&mut events).is_err() {
-            self.remove_pointer(id);
+        if let Err(error) = pointer.read_events(&mut events) {
+            self.pointer_fault(id, &error);
             return;
         }
         let mut frame = Vec::new();
@@ -451,9 +493,9 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
                     }
                     continue;
                 }
-                if !self.pointer_held.apply(id, ev) {
-                    continue;
-                }
+                // Track for teardown; an orphan release must still reach
+                // clients that observed its press before the grab.
+                self.pointer_held.apply(id, ev);
             }
             frame.push(event);
         }
@@ -752,6 +794,74 @@ mod tests {
                 .any(|note| note.code == "POINTER_UNSUPPORTED")
         );
         assert_eq!(d.timeout(), None);
+    }
+
+    #[test]
+    fn pointer_grab_races_leave_events_unconsumed_after_acquisition() {
+        for queries in [vec![true, false], vec![true, true, false]] {
+            let (mut d, opener, _) = daemon(mouse_config());
+            let pointer = opener.add_mapped_pointer("/dev/input/event7");
+            pointer
+                .borrow_mut()
+                .idle_queries
+                .extend(queries.iter().copied());
+            d.add(&mouse(), t(0));
+            assert!(!pointer.borrow().grabbed);
+            assert_eq!(pointer.borrow().grab_count, usize::from(queries.len() == 3));
+            assert_eq!(
+                pointer.borrow().read_count,
+                1,
+                "no read after grabbing an active mouse"
+            );
+        }
+        let (mut d, opener, _) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        pointer.borrow_mut().events = vec![raw(1, 272, 1), raw(0, 0, 0)];
+        d.add(&mouse(), t(0));
+        assert_eq!(
+            pointer.borrow().grab_count,
+            0,
+            "a press in the drained frame must defer grabbing"
+        );
+    }
+
+    #[test]
+    fn orphan_pointer_release_is_forwarded_and_lifecycle_is_reported() {
+        let (mut d, opener, sink) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        d.add(&mouse(), t(0));
+        assert!(d.take_notes().iter().any(|n| n.code == "DEVICE_GRABBED"));
+        pointer.borrow_mut().events = vec![raw(1, 272, 0), raw(0, 0, 0)];
+        d.pointer_ready(DeviceId(0), t(1));
+        assert_eq!(*sink.1.borrow(), [raw(1, 272, 0)]);
+        d.terminate();
+        assert!(d.take_notes().iter().any(|n| n.code == "DEVICE_RELEASED"));
+    }
+
+    // Verifies: ESC-SRS-053
+    #[test]
+    fn unmatched_pointer_stays_ungrabbed_beside_a_grabbed_mouse() {
+        let mut cfg = mouse_config();
+        cfg.devices.push(crate::config::DeviceRule {
+            matcher: crate::config::Matcher::Name("other mouse".into()),
+            ignore: false,
+            rules: escapepod_core::Rules::default(),
+        });
+        let (mut d, opener, _) = daemon(cfg);
+        let matched = opener.add_mapped_pointer("/dev/input/event7");
+        let other = opener.add_mapped_pointer("/dev/input/event8");
+        d.add(&mouse(), t(0));
+        d.add(
+            &DeviceInfo {
+                path: "/dev/input/event8".into(),
+                name: "other mouse".into(),
+                ..mouse()
+            },
+            t(0),
+        );
+        d.tick(t(1));
+        assert!(matched.borrow().grabbed);
+        assert!(!other.borrow().grabbed);
     }
 
     #[test]

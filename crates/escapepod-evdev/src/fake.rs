@@ -81,6 +81,12 @@ pub struct FakePointer(Rc<RefCell<usize>>, Rc<RefCell<PointerState>>);
 /// A mapped pointer's fake state.
 #[derive(Debug, Default)]
 pub struct PointerState {
+    /// Scripted idle results for acquisition-race tests.
+    pub idle_queries: VecDeque<bool>,
+    /// Grabs attempted.
+    pub grab_count: usize,
+    /// Reads performed.
+    pub read_count: usize,
     /// Frames waiting to be read.
     pub events: Vec<PointerEvent>,
     /// Whether its capabilities are supported.
@@ -104,14 +110,22 @@ impl Pointer for FakePointer {
         self.1.borrow().supported
     }
     fn is_idle(&self) -> io::Result<bool> {
-        Ok(self.1.borrow().idle)
+        let mut state = self.1.borrow_mut();
+        Ok(state.idle_queries.pop_front().unwrap_or(state.idle))
     }
     fn grab(&mut self) -> io::Result<()> {
-        self.1.borrow_mut().grabbed = true;
+        let mut state = self.1.borrow_mut();
+        state.grabbed = true;
+        state.grab_count += 1;
+        Ok(())
+    }
+    fn ungrab(&mut self) -> io::Result<()> {
+        self.1.borrow_mut().grabbed = false;
         Ok(())
     }
     fn read_events(&mut self, out: &mut Vec<PointerEvent>) -> io::Result<()> {
         let mut state = self.1.borrow_mut();
+        state.read_count += 1;
         if let Some(kind) = state.fail {
             return Err(kind.into());
         }

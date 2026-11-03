@@ -711,6 +711,21 @@ fn button_configuration_is_visible_and_x11_rejects_it() {
     assert_eq!(run.status.code(), Some(2));
 }
 
+#[test]
+fn schema_registers_pointer_unsupported_diagnostic() {
+    let root = scratch("pointer-diagnostic");
+    let output = cmd(&root).arg("schema").output().unwrap();
+    assert!(output.status.success());
+    let document = stdout_doc(&output);
+    assert!(
+        document["data"]["diagnostic_codes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|code| code == "POINTER_UNSUPPORTED")
+    );
+}
+
 // Verifies: ESC-SRS-041
 #[test]
 fn schema_is_valid_json_schema_2020_12() {
