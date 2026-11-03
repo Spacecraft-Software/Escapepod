@@ -206,6 +206,7 @@ enum Ready {
 pub fn run(
     cfg: Config,
     backend: BackendArg,
+    only_device: Option<(u16, u16)>,
     mode: &Mode,
     io: &mut Io<'_>,
     reload: &dyn Fn() -> Result<Config, AppError>,
@@ -223,6 +224,18 @@ pub fn run(
         io.env.var("DISPLAY").is_some(),
     ) {
         Selected::X11 => {
+            if cfg.has_buttons() {
+                return Err(AppError::invalid(
+                    "the X11 backend cannot suppress mouse buttons",
+                    "escapepod daemon run --backend evdev --dry-run",
+                ));
+            }
+            if only_device.is_some() {
+                return Err(AppError::invalid(
+                    "--only-device requires the evdev backend",
+                    "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
+                ));
+            }
             if backend == BackendArg::Auto {
                 mode.diag(
                     io.err,
@@ -247,9 +260,36 @@ pub fn run(
         }
         Selected::Evdev => {}
     }
-    // The virtual keyboard is created before any device is opened.
-    let sink = UinputKeyboard::create().map_err(|e| no_uinput(&e))?;
-    evdev_loop(Daemon::new(EvdevOpener, sink, cfg), mode, io, reload)
+    with_outputs(
+        UinputKeyboard::create,
+        UinputKeyboard::enable_pointer,
+        |sink| {
+            evdev_loop(
+                Daemon::new(EvdevOpener, sink, cfg).restrict_devices(only_device),
+                mode,
+                io,
+                reload,
+            )
+        },
+    )
+}
+
+// Implements: ESC-SRS-109
+fn with_outputs<S>(
+    keyboard: impl FnOnce() -> io::Result<S>,
+    pointer: impl FnOnce(&mut S) -> io::Result<()>,
+    start: impl FnOnce(S) -> Result<Exit, AppError>,
+) -> Result<Exit, AppError> {
+    let mut sink = keyboard().map_err(|e| no_uinput(&e))?;
+    pointer(&mut sink).map_err(|e| {
+        AppError::new(
+            "BACKEND_UNAVAILABLE",
+            Exit::Permission,
+            format!("cannot create the virtual pointer: {e}; no device was grabbed"),
+            "human: give the escapepod account write access to /dev/uinput (manual: Service)",
+        )
+    })?;
+    start(sink)
 }
 
 /// The backend `daemon run` uses.
@@ -286,7 +326,7 @@ pub fn select(
 /// reading (opened and closed at once; never grabbed).
 fn any_keyboard_readable(cfg: &Config, env: &Env) -> bool {
     app::scan_devices(env).unwrap_or_default().iter().any(|d| {
-        d.kind == DeviceKind::Keyboard
+        (d.kind == DeviceKind::Keyboard || d.kind == DeviceKind::Pointer && cfg.has_buttons())
             && !d.is_own()
             && cfg.rules_for(d).is_some()
             && std::fs::File::open(&d.path).is_ok()
@@ -706,6 +746,31 @@ pub fn monitor(
 
 #[cfg(test)]
 mod tests {
+    // Verifies: ESC-SRS-109
+    #[test]
+    fn pointer_creation_failure_exits_4_before_device_startup() {
+        use std::cell::Cell;
+        let started = Cell::new(false);
+        let keyboard_created = Cell::new(false);
+        let result = super::with_outputs(
+            || {
+                keyboard_created.set(true);
+                Ok(())
+            },
+            |()| Err(std::io::ErrorKind::PermissionDenied.into()),
+            |()| {
+                started.set(true);
+                Ok(crate::error::Exit::Success)
+            },
+        );
+        let error = result.unwrap_err();
+        assert_eq!(error.exit().code(), 4);
+        assert!(keyboard_created.get());
+        assert!(
+            !started.get(),
+            "device enumeration and grabs must not start"
+        );
+    }
     use super::*;
 
     // Verifies: ESC-SRS-063, ESC-SRS-064, ESC-SRS-100

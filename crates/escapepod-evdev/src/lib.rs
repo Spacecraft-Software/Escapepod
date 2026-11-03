@@ -21,8 +21,8 @@ mod real;
 #[doc(inline)]
 pub use discover::{DeviceInfo, DeviceKind, OWN_NAME_PREFIX, OWN_PRODUCT, OWN_VENDOR, info, scan};
 #[doc(inline)]
-pub use io::{Keyboard, Opener, Pointer, Sink};
+pub use io::{Keyboard, Opener, Pointer, PointerEvent, Sink};
 #[doc(inline)]
-pub use real::{EvdevKeyboard, EvdevOpener, EvdevPointer, UinputKeyboard};
+pub use real::{EvdevKeyboard, EvdevOpener, EvdevPointer, UinputKeyboard, UinputPointer};
 
 // Rust guideline compliant 2026-05-18

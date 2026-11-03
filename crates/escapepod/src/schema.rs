@@ -180,6 +180,7 @@ fn mapping_params() -> Value {
 fn run_params() -> Value {
     let mut p = mapping_props();
     p.insert("backend".into(), json!({ "type": "string", "enum": ["auto", "evdev", "x11"], "default": "auto", "description": "Backend" }));
+    p.insert("only_device".into(), json!({ "type": "string", "pattern": "^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$", "description": "Restrict device access to this vendor and product" }));
     p.insert(
         "yes".into(),
         json!({ "type": "boolean", "description": "Required off a terminal or under an agent" }),
@@ -357,7 +358,7 @@ pub fn schema(noun: Option<&str>, verb: Option<&str>) -> Result<Value, AppError>
             "commands": many.iter().map(|c| command_doc(c)).collect::<Vec<_>>(),
             "exit_codes": exit_codes(),
             "error_codes": ["INVALID_ARGUMENT", "MISSING_ARGUMENT", "NOT_FOUND", "PERMISSION_DENIED", "CONFLICT", "BACKEND_UNAVAILABLE", "X11_REMAP_UNSUPPORTED", "DISPLAY_LOST", "INTERNAL_ERROR"],
-            "diagnostic_codes": ["TUI_FALLBACK", "UNKNOWN_THEME", "SCREEN_READER_KEY", "NO_MAPPING", "DEVICE_FAULT", "RELOAD_FAILED", "RELOADED", "DEVICE_GRABBED", "DEVICE_RELEASED", "EMERGENCY_RELEASE"],
+            "diagnostic_codes": ["TUI_FALLBACK", "UNKNOWN_THEME", "SCREEN_READER_KEY", "NO_MAPPING", "DEVICE_FAULT", "RELOAD_FAILED", "RELOADED", "DEVICE_GRABBED", "DEVICE_RELEASED", "EMERGENCY_RELEASE", "POINTER_UNSUPPORTED"],
         })),
     }
 }

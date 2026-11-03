@@ -51,6 +51,7 @@ pub struct DualRole {
 pub struct Rules {
     dual: BTreeMap<KeyCode, DualRole>,
     remap: BTreeMap<KeyCode, KeyCode>,
+    buttons: BTreeMap<KeyCode, Vec<KeyCode>>,
     protected: BTreeSet<KeyCode>,
     tap_timeout: Duration,
 }
@@ -112,6 +113,19 @@ impl Rules {
         self.remap.iter().map(|(&s, &t)| (s, t))
     }
 
+    /// The shortcut mapped to a pointer button, if any.
+    #[must_use]
+    pub fn button(&self, button: KeyCode) -> Option<&[KeyCode]> {
+        self.buttons.get(&button).map(Vec::as_slice)
+    }
+
+    /// Button mappings in button-code order.
+    pub fn buttons(&self) -> impl Iterator<Item = (KeyCode, &[KeyCode])> + '_ {
+        self.buttons
+            .iter()
+            .map(|(&button, keys)| (button, keys.as_slice()))
+    }
+
     /// The protected keys, in key-code order.
     pub fn protected(&self) -> impl Iterator<Item = KeyCode> + '_ {
         self.protected.iter().copied()
@@ -132,6 +146,7 @@ impl Default for Rules {
         Self {
             dual: BTreeMap::new(),
             remap: BTreeMap::new(),
+            buttons: BTreeMap::new(),
             protected: BTreeSet::new(),
             tap_timeout: DEFAULT_TAP_TIMEOUT,
         }
@@ -143,11 +158,18 @@ impl Default for Rules {
 pub struct RulesBuilder {
     dual: Vec<DualRole>,
     remap: Vec<(KeyCode, KeyCode)>,
+    buttons: Vec<(KeyCode, Vec<KeyCode>)>,
     protected: BTreeSet<KeyCode>,
     tap_timeout: Option<Duration>,
 }
 
 impl RulesBuilder {
+    /// Maps a pointer button to an ordered key shortcut.
+    #[must_use]
+    pub fn button(mut self, button: KeyCode, keys: Vec<KeyCode>) -> Self {
+        self.buttons.push((button, keys));
+        self
+    }
     /// Adds a dual-role key.
     #[must_use]
     pub fn dual_role(mut self, key: KeyCode, hold: KeyCode, tap: KeyCode) -> Self {
@@ -182,7 +204,8 @@ impl RulesBuilder {
     ///
     /// Returns a [`RulesError`] when one physical key is given two roles
     /// (two dual-role entries, two remaps, or a dual-role entry and a
-    /// remap), or when the tap timeout is zero.
+    /// remap), when the tap timeout is zero, or when a button is repeated
+    /// or its shortcut has fewer than one, more than eight, or repeated keys.
     pub fn build(self) -> Result<Rules, RulesError> {
         let tap_timeout = self.tap_timeout.unwrap_or(DEFAULT_TAP_TIMEOUT);
         if tap_timeout.is_zero() {
@@ -200,9 +223,22 @@ impl RulesBuilder {
                 return Err(RulesError::new(ErrorKind::TwoRoles(s)));
             }
         }
+        let mut buttons = BTreeMap::new();
+        for (button, keys) in self.buttons {
+            if keys.is_empty()
+                || keys.len() > 8
+                || keys.iter().collect::<BTreeSet<_>>().len() != keys.len()
+            {
+                return Err(RulesError::new(ErrorKind::InvalidShortcut(button)));
+            }
+            if buttons.insert(button, keys).is_some() {
+                return Err(RulesError::new(ErrorKind::DuplicateButton(button)));
+            }
+        }
         Ok(Rules {
             dual,
             remap,
+            buttons,
             protected: self.protected,
             tap_timeout,
         })
@@ -213,6 +249,8 @@ impl RulesBuilder {
 enum ErrorKind {
     TwoRoles(KeyCode),
     ZeroTimeout,
+    InvalidShortcut(KeyCode),
+    DuplicateButton(KeyCode),
 }
 
 /// The rules given to [`RulesBuilder::build`] are not valid.
@@ -231,7 +269,9 @@ impl RulesError {
     pub fn conflicting_key(&self) -> Option<KeyCode> {
         match self.kind {
             ErrorKind::TwoRoles(k) => Some(k),
-            ErrorKind::ZeroTimeout => None,
+            ErrorKind::ZeroTimeout
+            | ErrorKind::InvalidShortcut(_)
+            | ErrorKind::DuplicateButton(_) => None,
         }
     }
 
@@ -247,6 +287,10 @@ impl fmt::Display for RulesError {
         match self.kind {
             ErrorKind::TwoRoles(k) => write!(f, "key {k} is given more than one role"),
             ErrorKind::ZeroTimeout => f.write_str("the tap timeout is zero"),
+            ErrorKind::InvalidShortcut(k) => {
+                write!(f, "button {k} needs one to eight distinct shortcut keys")
+            }
+            ErrorKind::DuplicateButton(k) => write!(f, "button {k} is mapped more than once"),
         }
     }
 }

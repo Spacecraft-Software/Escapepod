@@ -6,13 +6,13 @@
 //! faults, removal, hotplug, reload, termination and the emergency chord.
 //! The `poll(2)` loop that drives it is in `service.rs`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 
 use std::time::Duration;
 
-use escapepod_core::{DeviceId, Instant, KeyEvent, Session};
-use escapepod_evdev::{DeviceInfo, DeviceKind, Keyboard, Opener, Pointer, Sink};
+use escapepod_core::{DeviceId, HeldKeys, Instant, KeyCode, KeyEvent, KeyValue, Session};
+use escapepod_evdev::{DeviceInfo, DeviceKind, Keyboard, Opener, Pointer, PointerEvent, Sink};
 use serde_json::{Value, json};
 
 use crate::config::Config;
@@ -65,8 +65,12 @@ pub struct Daemon<O: Opener, S: Sink> {
     sink: S,
     session: Session,
     config: Config,
+    only_device: Option<(u16, u16)>,
     keyboards: BTreeMap<DeviceId, Kbd<O::Keyboard>>,
     pointers: BTreeMap<DeviceId, (DeviceInfo, O::Pointer)>,
+    grabbed_pointers: BTreeSet<DeviceId>,
+    waiting_pointers: BTreeSet<DeviceId>,
+    pointer_held: HeldKeys,
     next: u32,
     out: Vec<KeyEvent>,
     keys: Vec<KeyEvent>,
@@ -84,14 +88,24 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             sink,
             session,
             config,
+            only_device: None,
             keyboards: BTreeMap::new(),
             pointers: BTreeMap::new(),
+            grabbed_pointers: BTreeSet::new(),
+            waiting_pointers: BTreeSet::new(),
+            pointer_held: HeldKeys::default(),
             next: 0,
             out: Vec::new(),
             keys: Vec::new(),
             notes: Vec::new(),
             records: Vec::new(),
         }
+    }
+
+    /// Restrict device access for the lifetime of this daemon, including reloads.
+    pub fn restrict_devices(mut self, id: Option<(u16, u16)>) -> Self {
+        self.only_device = id;
+        self
     }
 
     fn note(&mut self, severity: Severity, code: &'static str, message: String) {
@@ -122,7 +136,12 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
     /// once idle, or a pointer for reading. Never a device an Escape Pod
     /// process created (ESC-SRS-045). Returns whether it was opened.
     pub fn add(&mut self, info: &DeviceInfo, now: Instant) -> bool {
-        if info.is_own() || self.is_open(&info.path) {
+        if info.is_own()
+            || self.is_open(&info.path)
+            || self
+                .only_device
+                .is_some_and(|id| id != (info.vendor, info.product))
+        {
             return false;
         }
         match info.kind {
@@ -164,13 +183,21 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
                     }
                 }
             }
-            // Pointers are read for button presses and never grabbed
-            // (ESC-SRS-053). Implements: ESC-SRS-053
+            // Unmatched pointers are observed; configured relative mice
+            // are grabbed only when idle. Implements: ESC-SRS-053
             DeviceKind::Pointer => match self.opener.pointer(&info.path) {
                 Ok(dev) => {
                     let id = DeviceId(self.next);
                     self.next += 1;
                     self.pointers.insert(id, (info.clone(), dev));
+                    if self
+                        .config
+                        .rules_for(info)
+                        .is_some_and(|r| r.buttons().next().is_some())
+                    {
+                        self.waiting_pointers.insert(id);
+                        self.try_pointer_grab(id);
+                    }
                     true
                 }
                 Err(_) => false,
@@ -214,6 +241,10 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
 
     /// Grabs every waiting keyboard that went idle or ran out of time.
     pub fn tick(&mut self, now: Instant) {
+        let waiting: Vec<_> = self.waiting_pointers.iter().copied().collect();
+        for id in waiting {
+            self.try_pointer_grab(id);
+        }
         let waiting: Vec<DeviceId> = self
             .keyboards
             .iter()
@@ -228,17 +259,17 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
     /// How long the loop may sleep: forever, unless a keyboard is waiting
     /// to go idle (ESC-SRS-057).
     pub fn timeout(&self) -> Option<Duration> {
-        self.keyboards
-            .values()
-            .any(|k| !k.grabbed)
+        (self.keyboards.values().any(|k| !k.grabbed) || !self.waiting_pointers.is_empty())
             .then_some(IDLE_POLL)
     }
 
-    fn flush(&mut self) {
+    fn flush(&mut self) -> bool {
         if self.out.is_empty() {
-            return;
+            return true;
         }
-        if let Err(e) = self.sink.emit(&self.out) {
+        let result = self.sink.emit(&self.out);
+        let success = result.is_ok();
+        if let Err(e) = result {
             self.notes.push(Note {
                 severity: Severity::Error,
                 code: "OUTPUT_FAILED",
@@ -246,6 +277,7 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             });
         }
         self.out.clear();
+        success
     }
 
     /// Reads keyboard `id`. Events of a keyboard not yet grabbed also reach
@@ -302,15 +334,173 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
 
     /// Reads pointer `id` for button presses.
     pub fn pointer_ready(&mut self, id: DeviceId, now: Instant) {
+        if self.grabbed_pointers.contains(&id) {
+            self.mapped_pointer_ready(id, now);
+            return;
+        }
         let Some((_, p)) = self.pointers.get_mut(&id) else {
             return;
         };
         match p.read_presses() {
             Ok(0) => {}
             Ok(_) => self.session.on_pointer_press(now),
-            Err(_) => {
-                self.pointers.remove(&id);
+            Err(error) => {
+                self.pointer_fault(id, &error);
             }
+        }
+    }
+
+    fn try_pointer_grab(&mut self, id: DeviceId) {
+        let Some((info, pointer)) = self.pointers.get_mut(&id) else {
+            return;
+        };
+        if !self.sink.has_pointer() || !pointer.supports_forwarding() {
+            self.waiting_pointers.remove(&id);
+            self.note(
+                Severity::Error,
+                "POINTER_UNSUPPORTED",
+                "pointer cannot be forwarded; it was not grabbed".into(),
+            );
+            return;
+        }
+        if !pointer.is_idle().unwrap_or(false) {
+            return;
+        }
+        // Discard pre-grab events, which already reached the desktop.
+        let mut stale = Vec::new();
+        if pointer.read_events(&mut stale).is_err() {
+            self.remove_pointer(id);
+            return;
+        }
+        let mut down = BTreeSet::new();
+        for event in &stale {
+            if event.kind == 1 {
+                if event.value == 0 {
+                    down.remove(&event.code);
+                } else {
+                    down.insert(event.code);
+                }
+            }
+        }
+        if !down.is_empty() || !pointer.is_idle().unwrap_or(false) {
+            return;
+        }
+        if let Err(error) = pointer.grab() {
+            self.note(
+                Severity::Warn,
+                "DEVICE_BUSY",
+                format!("cannot grab pointer: {error}"),
+            );
+            self.waiting_pointers.remove(&id);
+            return;
+        }
+        // Do not consume events after acquisition until the state is safe.
+        // Releases still pending in the kernel must reach the desktop.
+        if !pointer.is_idle().unwrap_or(false) {
+            if pointer.ungrab().is_err() {
+                self.remove_pointer(id);
+            }
+            return;
+        }
+        let rules = self.config.rules_for(info).cloned().unwrap_or_default();
+        let message = format!("grabbed {} ({})", info.name, info.path.display());
+        self.session.add_pointer(id, rules);
+        self.waiting_pointers.remove(&id);
+        self.grabbed_pointers.insert(id);
+        self.note(Severity::Info, "DEVICE_GRABBED", message);
+    }
+
+    fn remove_pointer(&mut self, id: DeviceId) {
+        let grabbed = self.grabbed_pointers.contains(&id);
+        let message = self
+            .pointers
+            .get(&id)
+            .map(|(info, _)| format!("released {} ({})", info.name, info.path.display()));
+        self.session.remove_device(id, &mut self.out);
+        self.flush();
+        let mut releases = Vec::new();
+        self.pointer_held.release_device(id, &mut releases);
+        let events: Vec<_> = releases
+            .iter()
+            .map(|e| PointerEvent {
+                kind: 1,
+                code: e.key.code(),
+                value: e.value.raw(),
+            })
+            .collect();
+        let _ = self.sink.emit_pointer(&events);
+        self.grabbed_pointers.remove(&id);
+        self.waiting_pointers.remove(&id);
+        self.pointers.remove(&id);
+        if grabbed && let Some(message) = message {
+            self.note(Severity::Info, "DEVICE_RELEASED", message);
+        }
+    }
+
+    fn pointer_fault(&mut self, id: DeviceId, error: &io::Error) {
+        if error.raw_os_error() != Some(19) {
+            self.note(
+                Severity::Warn,
+                "DEVICE_FAULT",
+                format!("reading pointer failed: {error}; its grab is released"),
+            );
+        }
+        self.remove_pointer(id);
+    }
+
+    fn mapped_pointer_ready(&mut self, id: DeviceId, now: Instant) {
+        let mut events = Vec::new();
+        let Some((_, pointer)) = self.pointers.get_mut(&id) else {
+            return;
+        };
+        if let Err(error) = pointer.read_events(&mut events) {
+            self.pointer_fault(id, &error);
+            return;
+        }
+        let mut frame = Vec::new();
+        for event in events {
+            if event.kind == 0 {
+                if event.code != 0 {
+                    self.remove_pointer(id);
+                    return;
+                }
+                if self.sink.emit_pointer(&frame).is_err() {
+                    self.remove_pointer(id);
+                    return;
+                }
+                frame.clear();
+                continue;
+            }
+            if event.kind == 1 {
+                let Some(key) = KeyCode::new(event.code) else {
+                    self.remove_pointer(id);
+                    return;
+                };
+                let Some(value) = KeyValue::from_raw(event.value) else {
+                    self.remove_pointer(id);
+                    return;
+                };
+                let ev = KeyEvent { key, value };
+                if self.session.on_button(id, ev, now, &mut self.out) {
+                    if self.sink.emit_pointer(&frame).is_err() {
+                        self.remove_pointer(id);
+                        return;
+                    }
+                    frame.clear();
+                    if !self.flush() {
+                        self.remove_pointer(id);
+                        return;
+                    }
+                    continue;
+                }
+                // Track for teardown; an orphan release must still reach
+                // clients that observed its press before the grab.
+                self.pointer_held.apply(id, ev);
+            }
+            frame.push(event);
+        }
+        if !frame.is_empty() {
+            self.remove_pointer(id);
         }
     }
 
@@ -370,6 +560,18 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
                 return;
             }
         };
+        let pointers: Vec<_> = self
+            .pointers
+            .iter()
+            .map(|(&id, (info, _))| (id, info.clone()))
+            .collect();
+        for (id, info) in pointers {
+            let old = self.config.rules_for(&info);
+            let new = cfg.rules_for(&info);
+            if old != new {
+                self.remove_pointer(id);
+            }
+        }
         let ids: Vec<DeviceId> = self.keyboards.keys().copied().collect();
         for id in ids {
             let Some(k) = self.keyboards.get(&id) else {
@@ -396,6 +598,10 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
     /// Releases every held key, as on `SIGTERM` or `SIGINT`.
     /// Implements: ESC-SRS-046
     pub fn terminate(&mut self) {
+        let ids: Vec<_> = self.pointers.keys().copied().collect();
+        for id in ids {
+            self.remove_pointer(id);
+        }
         self.session.release_all(&mut self.out);
         self.flush();
     }
@@ -403,6 +609,10 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
     /// Closes every keyboard, which releases every grab (ESC-SRS-048).
     /// Implements: ESC-SRS-048
     fn release_grabs(&mut self) {
+        let pointers: Vec<_> = self.pointers.keys().copied().collect();
+        for id in pointers {
+            self.remove_pointer(id);
+        }
         let ids: Vec<DeviceId> = self.keyboards.keys().copied().collect();
         for id in ids {
             self.session.remove_device(id, &mut self.out);
@@ -428,7 +638,9 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             "backend": "evdev",
             "devices": self.keyboards.values().map(|k| json!({
                 "name": k.info.name, "path": k.info.path.display().to_string(), "grabbed": k.grabbed,
-            })).collect::<Vec<_>>(),
+            })).chain(self.pointers.iter().map(|(id, (info, _))| json!({
+                "name": info.name, "path": info.path.display().to_string(), "grabbed": self.grabbed_pointers.contains(id),
+            }))).collect::<Vec<_>>(),
             "pointers": self.pointers.len(),
             "held": self.session.held().keys().count(),
         })
@@ -448,6 +660,10 @@ impl<O: Opener, S: Sink> Drop for Daemon<O, S> {
     /// Runs on every exit, including a panic's unwind: no key stays held.
     /// Implements: ESC-SRS-047
     fn drop(&mut self) {
+        let ids: Vec<_> = self.pointers.keys().copied().collect();
+        for id in ids {
+            self.remove_pointer(id);
+        }
         if !self.session.held().is_empty() {
             self.session.release_all(&mut self.out);
             let _ = self.sink.emit(&self.out);
@@ -459,7 +675,6 @@ impl<O: Opener, S: Sink> Drop for Daemon<O, S> {
 mod tests {
     use super::*;
     use crate::config::{Overrides, load};
-    use escapepod_core::{KeyCode, KeyValue};
     use escapepod_evdev::fake::{FakeOpener, FakeSink, KeyboardHandle};
 
     const CAPS: KeyCode = KeyCode::CAPSLOCK;
@@ -501,6 +716,195 @@ mod tests {
         Instant::from_micros(ms * 1000)
     }
 
+    fn mouse_config() -> Config {
+        let mut cfg = caps_config();
+        cfg.global = escapepod_core::Rules::builder()
+            .button(
+                KeyCode::from_name("BTN_SIDE").unwrap(),
+                vec![CTRL, KeyCode::from_name("KEY_RIGHT").unwrap()],
+            )
+            .build()
+            .unwrap();
+        cfg
+    }
+
+    fn mouse() -> DeviceInfo {
+        DeviceInfo {
+            kind: DeviceKind::Pointer,
+            ..kb("/dev/input/event7", "mouse")
+        }
+    }
+
+    fn raw(kind: u16, code: u16, value: i32) -> PointerEvent {
+        PointerEvent { kind, code, value }
+    }
+
+    #[test]
+    // Verifies: ESC-SRS-107, ESC-SRS-108
+    fn mapped_pointer_forwards_motion_and_releases_on_read_error() {
+        let (mut d, opener, sink) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        assert!(d.add(&mouse(), t(0)));
+        assert!(pointer.borrow().grabbed);
+        pointer.borrow_mut().events =
+            vec![raw(1, 275, 1), raw(2, 0, 7), raw(1, 272, 1), raw(0, 0, 0)];
+        d.pointer_ready(DeviceId(0), t(1));
+        assert_eq!(
+            emitted(&sink),
+            [
+                KeyEvent::press(CTRL),
+                KeyEvent::press(KeyCode::from_name("KEY_RIGHT").unwrap())
+            ]
+        );
+        assert_eq!(*sink.1.borrow(), [raw(2, 0, 7), raw(1, 272, 1)]);
+        pointer.borrow_mut().fail = Some(io::ErrorKind::NotConnected);
+        d.pointer_ready(DeviceId(0), t(2));
+        assert!(!pointer.borrow().grabbed);
+        assert!(d.session.held().is_empty());
+        assert_eq!(sink.1.borrow().last(), Some(&raw(1, 272, 0)));
+    }
+
+    #[test]
+    fn pointer_waits_for_idle_and_reload_releases_it() {
+        let (mut d, opener, _) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        pointer.borrow_mut().idle = false;
+        d.add(&mouse(), t(0));
+        assert!(!pointer.borrow().grabbed);
+        d.tick(t(2000));
+        assert!(!pointer.borrow().grabbed);
+        pointer.borrow_mut().idle = true;
+        d.tick(t(2001));
+        assert!(pointer.borrow().grabbed);
+        d.reload(Ok(caps_config()), &[mouse()], t(2002));
+        assert!(!pointer.borrow().grabbed);
+    }
+
+    #[test]
+    fn unsupported_pointer_is_never_grabbed() {
+        let (mut d, opener, _) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        pointer.borrow_mut().supported = false;
+        d.add(&mouse(), t(0));
+        d.tick(t(10000));
+        assert!(!pointer.borrow().grabbed);
+        assert!(
+            d.take_notes()
+                .iter()
+                .any(|note| note.code == "POINTER_UNSUPPORTED")
+        );
+        assert_eq!(d.timeout(), None);
+    }
+
+    #[test]
+    fn pointer_grab_races_leave_events_unconsumed_after_acquisition() {
+        for queries in [vec![true, false], vec![true, true, false]] {
+            let (mut d, opener, _) = daemon(mouse_config());
+            let pointer = opener.add_mapped_pointer("/dev/input/event7");
+            pointer
+                .borrow_mut()
+                .idle_queries
+                .extend(queries.iter().copied());
+            d.add(&mouse(), t(0));
+            assert!(!pointer.borrow().grabbed);
+            assert_eq!(pointer.borrow().grab_count, usize::from(queries.len() == 3));
+            assert_eq!(
+                pointer.borrow().read_count,
+                1,
+                "no read after grabbing an active mouse"
+            );
+        }
+        let (mut d, opener, _) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        pointer.borrow_mut().events = vec![raw(1, 272, 1), raw(0, 0, 0)];
+        d.add(&mouse(), t(0));
+        assert_eq!(
+            pointer.borrow().grab_count,
+            0,
+            "a press in the drained frame must defer grabbing"
+        );
+    }
+
+    #[test]
+    fn orphan_pointer_release_is_forwarded_and_lifecycle_is_reported() {
+        let (mut d, opener, sink) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        d.add(&mouse(), t(0));
+        assert!(d.take_notes().iter().any(|n| n.code == "DEVICE_GRABBED"));
+        pointer.borrow_mut().events = vec![raw(1, 272, 0), raw(0, 0, 0)];
+        d.pointer_ready(DeviceId(0), t(1));
+        assert_eq!(*sink.1.borrow(), [raw(1, 272, 0)]);
+        d.terminate();
+        assert!(d.take_notes().iter().any(|n| n.code == "DEVICE_RELEASED"));
+    }
+
+    // Verifies: ESC-SRS-053
+    #[test]
+    fn unmatched_pointer_stays_ungrabbed_beside_a_grabbed_mouse() {
+        let mut cfg = mouse_config();
+        cfg.devices.push(crate::config::DeviceRule {
+            matcher: crate::config::Matcher::Name("other mouse".into()),
+            ignore: false,
+            rules: escapepod_core::Rules::default(),
+        });
+        let (mut d, opener, _) = daemon(cfg);
+        let matched = opener.add_mapped_pointer("/dev/input/event7");
+        let other = opener.add_mapped_pointer("/dev/input/event8");
+        d.add(&mouse(), t(0));
+        d.add(
+            &DeviceInfo {
+                path: "/dev/input/event8".into(),
+                name: "other mouse".into(),
+                ..mouse()
+            },
+            t(0),
+        );
+        d.tick(t(1));
+        assert!(matched.borrow().grabbed);
+        assert!(!other.borrow().grabbed);
+    }
+
+    #[test]
+    fn pointer_output_failure_releases_the_grab() {
+        struct FailedKeyboard;
+        impl Sink for FailedKeyboard {
+            fn has_pointer(&self) -> bool {
+                true
+            }
+            fn emit(&mut self, _events: &[KeyEvent]) -> io::Result<()> {
+                Err(io::ErrorKind::BrokenPipe.into())
+            }
+            fn emit_pointer(&mut self, _events: &[PointerEvent]) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let opener = FakeOpener::default();
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        let mut d = Daemon::new(opener, FailedKeyboard, mouse_config());
+        d.add(&mouse(), t(0));
+        pointer.borrow_mut().events = vec![raw(1, 275, 1), raw(0, 0, 0)];
+        d.pointer_ready(DeviceId(0), t(1));
+        assert!(!pointer.borrow().grabbed);
+        assert!(d.session.held().is_empty());
+    }
+
+    #[test]
+    fn pointer_unwind_releases_shortcuts_and_unmapped_buttons() {
+        let (mut d, opener, sink) = daemon(mouse_config());
+        let pointer = opener.add_mapped_pointer("/dev/input/event7");
+        d.add(&mouse(), t(0));
+        pointer.borrow_mut().events = vec![raw(1, 275, 1), raw(1, 272, 1), raw(0, 0, 0)];
+        d.pointer_ready(DeviceId(0), t(1));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _d = d;
+            panic!("fixture unwind");
+        }));
+        assert!(result.is_err());
+        assert!(!pointer.borrow().grabbed);
+        assert_eq!(sink.1.borrow().last(), Some(&raw(1, 272, 0)));
+        assert_eq!(emitted(&sink).last(), Some(&KeyEvent::release(CTRL)));
+    }
+
     fn press(h: &KeyboardHandle, d: &mut D, id: u32, ev: KeyEvent, ms: u64) -> Flow {
         h.borrow_mut().queue.push_back(ev);
         d.keyboard_ready(DeviceId(id), t(ms))
@@ -528,6 +932,27 @@ mod tests {
             [std::path::PathBuf::from("/dev/input/event0")],
             "its own device is never opened"
         );
+    }
+
+    // Verifies: ESC-SRS-111
+    #[test]
+    fn device_restriction_survives_hotplug_and_reload() {
+        let (d, opener, _) = daemon(caps_config());
+        let mut d = d.restrict_devices(Some((1, 1)));
+        let allowed = opener.add_keyboard("/dev/input/event0");
+        let denied = opener.add_keyboard("/dev/input/event1");
+        let a = kb("/dev/input/event0", "allowed");
+        let b = DeviceInfo {
+            vendor: 2,
+            ..kb("/dev/input/event1", "denied")
+        };
+        d.hotplug(&b, t(0));
+        assert!(d.add(&a, t(0)));
+        d.reload(Ok(caps_config()), &[a, b.clone()], t(1));
+        d.hotplug(&b, t(2));
+        assert!(allowed.borrow().grabbed);
+        assert!(!denied.borrow().grabbed);
+        assert_eq!(opener.opened.borrow().len(), 1);
     }
 
     #[test]

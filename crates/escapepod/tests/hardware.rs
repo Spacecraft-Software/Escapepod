@@ -99,6 +99,11 @@ fn fixture_grabbed(socket: &Path) -> bool {
 /// instead of passing without having run: that is how the evidence run is
 /// made (`tools/ci.nu --only hardware`).
 fn rig(name: &str, config: &str) -> Option<Rig> {
+    assert_eq!(
+        std::env::var_os("ESCAPEPOD_HW_ON_HOST").as_deref(),
+        Some(std::ffi::OsStr::new("1")),
+        "hardware tests require ESCAPEPOD_HW_ON_HOST=1; use the NixOS VM gate otherwise"
+    );
     let rig = (0..8).find_map(|attempt| try_rig(&format!("{name}-{attempt}"), config));
     assert!(
         rig.is_some() || std::env::var_os("ESCAPEPOD_HW_REQUIRE").is_none(),
@@ -127,7 +132,17 @@ fn try_rig(name: &str, config: &str) -> Option<Rig> {
     std::fs::write(&cfg, config_text(config)).unwrap();
     let socket = dir.join("escapepod.sock");
     let daemon = Command::new(env!("CARGO_BIN_EXE_escapepod"))
-        .args(["daemon", "run", "--yes", "--verbose", "--config"])
+        .args([
+            "daemon",
+            "run",
+            "--backend",
+            "evdev",
+            "--yes",
+            "--verbose",
+            "--only-device",
+            "5350:5445",
+            "--config",
+        ])
         .arg(&cfg)
         .env("ESCAPEPOD_SOCKET", &socket)
         .stdout(Stdio::null())

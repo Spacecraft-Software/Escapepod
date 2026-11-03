@@ -247,10 +247,14 @@ def gates []: nothing -> record {
         }
         vm: { run-cmd vm { ^nix build --no-link -L .#checks.x86_64-linux.nixos } }
         hardware: {
-            run-cmd hardware {
-                with-env { ESCAPEPOD_HW_REQUIRE: "1" } {
-                    (^cargo test -p escapepod --features hardware-tests --locked
-                        --test hardware -- --test-threads=1)
+            if ($env.ESCAPEPOD_HW_ON_HOST? | default "") != "1" {
+                run-cmd hardware { ^nix build --no-link -L .#checks.x86_64-linux.nixos }
+            } else {
+                run-cmd hardware {
+                    with-env { ESCAPEPOD_HW_REQUIRE: "1" } {
+                        (^cargo test -p escapepod --features hardware-tests --locked
+                            --test hardware -- --test-threads=1)
+                    }
                 }
             }
         }

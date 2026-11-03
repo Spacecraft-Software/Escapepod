@@ -8,6 +8,7 @@
 @example
 escapepod daemon run [--map @var{MAP}] [--tap-timeout @var{MS}]
                      [--backend auto|evdev|x11] [--yes] [--dry-run]
+                     [--only-device VVVV:PPPP]
 escapepod daemon status [--socket @var{PATH}]
 escapepod event monitor [--all-keys] [--map @var{MAP}]
 escapepod device list
@@ -34,6 +35,11 @@ Creates the virtual keyboard, grabs every matched keyboard once no key is
 down on it, and applies the mapping until it receives @code{SIGTERM} or
 @code{SIGINT}.  @code{SIGHUP} reloads the configuration.  Off a terminal or
 under an AI agent it needs @option{--yes}.
+@option{--only-device} limits device access to a hexadecimal vendor and
+product pair, such as @code{1234:5678}.  The restriction also applies after
+hotplug and reload.  Identical devices may share these identifiers, so this
+does not distinguish individual units.  This option requires the evdev
+backend; X11 cannot enforce it.
 @item daemon status
 Asks the running daemon for its devices and the number of keys it holds.
 @item event monitor
@@ -148,6 +154,35 @@ user's files, so it cannot see an Orca setting: Orca users should run a
 session daemon instead (@code{escapepod daemon run} from the session) or
 list Orca's modifier key under @code{protected}.
 
+@section Mouse side buttons
+
+On the evdev backend, map a mouse button to an ordered shortcut:
+
+@example
+[[device]]
+id = "1234:5678"
+[[device.button]]
+button = "BTN_SIDE"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_RIGHT"]
+[[device.button]]
+button = "BTN_EXTRA"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_LEFT"]
+@end example
+
+Replace the identifier with the mouse's value from @code{device list}.
+Each shortcut has one to eight distinct keyboard keys.  Its keys go down
+in list order and come up in reverse order when the button is released.
+Global @code{[[button]]} rules also work; a per-device list replaces them.
+
+Matched relative mice are grabbed once their buttons are up.  Motion,
+wheels and unmapped buttons pass through the virtual pointer.  Devices
+with unsupported capabilities, such as absolute touchpads, are left
+ungrabbed with a diagnostic.  X11 rejects button rules.
+
+When migrating from xremap, validate the configuration first, stop xremap,
+then start Escape Pod.  Remove the xremap ignore rule after xremap has been
+removed.  Keep only one remapper grabbing the physical devices.
+
 @node Troubleshooting
 @chapter Troubleshooting
 @cindex troubleshooting
@@ -158,6 +193,14 @@ No @file{/dev/uinput} access, no readable keyboard, and no @env{DISPLAY}.
 Run the service (@pxref{Service}), or in an X session use
 @option{--backend x11}.
 @item @samp{DEVICE_BUSY}
+Another program holds a device's exclusive grab.
+@item @samp{POINTER_UNSUPPORTED}
+The configured pointer has capabilities the virtual pointer cannot preserve.
+It stays ungrabbed; use a supported relative mouse for button shortcuts.
+@item Grab and release notices
+@samp{DEVICE_GRABBED} and @samp{DEVICE_RELEASED} identify both keyboards
+and mapped pointers entering and leaving exclusive operation.
+@item Other remappers
 Another program, often another remapper, holds a keyboard's grab.  Stop it,
 or exclude that keyboard with a @code{[[device]]} rule.
 @item A key seems stuck
