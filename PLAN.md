@@ -14,7 +14,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Escape Pod — Plan
 
-MVP: M0–M6 — Escape Pod v0.1
+MVP: M0–M7 — Escape Pod v0.1
 
 This is the §17.5 plan for [`PRD.md`](PRD.md). It cuts the PRD's milestones into work
 packages; the requirements themselves live in `doc/requirements.toml` (rendered into
@@ -63,7 +63,7 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 - [x] P-007 Traceability: `tools/trace.nu` (markers `Verifies:`/`Implements:` → matrix; fails
       on unknown id or `implemented`/`verified` without marker; `--release` orphans; emits the
       §17.1 block) and `tools/progress.nu` (TODO/PLAN rows via `doc/progress-map.toml`) —
-      ESC-SRS-085 (verified at M6)
+      ESC-SRS-085 (verified at M7)
 - [x] P-008 G2: `Design` node (architecture, serial `poll(2)` trade-off, safety and privacy
       models, device-I/O seam), `DEPENDENCIES.md` trust path (`evdev`, `nix`, `x11rb`,
       `toml`, `serde`, `serde_json`, `clap`, `jiff`; poll primitive), `Interfaces` node skeleton
@@ -124,7 +124,8 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
       ESC-SRS-043, 044, 045
 - [x] P-024 Single-thread event loop: one `poll(2)` over device fds, udev monitor, signal fd,
       status socket; blocking with no timeout while idle (analysis record `doc/idle.md`);
-      pointers read without grab — ESC-SRS-053, 057
+      pointers read without grab under the original scope — ESC-SRS-057. Verification of
+      amended ESC-SRS-053 moves to P-047 in M6
 - [x] P-025 Release discipline: `HeldKeys` ledger; release on SIGTERM/SIGINT within 100 ms,
       on panic (hook + drop guard), on device removal; emergency chord releases every grab
       and exits 6 — ESC-SRS-046, 047, 048, 052, 096
@@ -167,7 +168,32 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
       xcape migration), `Interfaces` node completed for all seven classes with committed
       schemas under `schemas/`; builds Info, HTML, PDF with zero warnings — ESC-SRS-078, 089
 
-## M6 — Verification and release gate
+## M6 — Mouse buttons and test safety
+
+Added 2026-11-02 at the maintainer's request: Escape Pod takes over the mouse side-button
+shortcuts xremap provides, so xremap can be removed, and device tests leave the live desktop.
+
+- [ ] P-045 G1 re-entry: ESC-SRS-105 to 112 and ESC-NEED-009 added, ESC-SRS-053 amended
+      (and moved to M6), the release gate renumbered M7; characteristics gate re-run on the
+      changed rows; gate record in `COMPLIANCE.md`
+- [ ] P-046 Core button rules: a button → shortcut map in `Rules` (1 to 8 keys), a session
+      path for grabbed-pointer buttons through the held-keys ledger (press in order, release in
+      reverse), pointer presses still marking dual-role keys used — ESC-SRS-105, 106
+- [ ] P-047 evdev pointer path: `UinputPointer` (relative axes, wheels, mouse buttons) created
+      before any grab; matched pointers grabbed once idle; unmapped events passed through in
+      order; faults, removal, hotplug and reload as for keyboards; unmatched pointers stay
+      read-only — ESC-SRS-053, 107, 108, 109
+- [ ] P-048 Config and CLI: `[[button]]` globally and per device, limits; `config check`,
+      `--dry-run`, `device list` and `schema` show button rules and grabbed pointers; ICD and
+      config schema; the X11 backend refuses button rules — ESC-SRS-110, 112
+- [ ] P-049 Test safety: `--only-device VVVV:PPPP`; hardware tests run in the NixOS VM by
+      default and on the host only with `ESCAPEPOD_HW_ON_HOST=1`; the VM test gains a mouse
+      fixture — ESC-SRS-111
+- [ ] P-050 Retire xremap: manual section on mouse buttons and an xremap migration note; the
+      maintainer's configuration maps the side buttons, and its xremap ignore rule goes once
+      xremap is removed
+
+## M7 — Verification and release gate
 
 - [ ] P-038 Budget gates: `tools/latency-gate.nu` (uinput loopback, p99 ≤ 1 ms, `taskset -c
       0,1`), `tools/rss-gate.nu` (≤ 8 MiB), binary-size row declared; margins and bands in
@@ -178,12 +204,12 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
       (`doc/mutants.md`) — ESC-SRS-083, 084
 - [ ] P-041 Trace gate green on GitHub and SBOM (`cargo cyclonedx`) with checksum in
       `release.yml` — ESC-SRS-085, 086
-- [ ] P-042 G3: validation of ESC-NEED-001–008 from installed packages in clean environments
+- [ ] P-042 G3: validation of ESC-NEED-001–009 from installed packages in clean environments
       (NixOS VM, Guix container, Arch container), `CHANGELOG.md`, release manifest
       `doc/release-0.1.md`, open anomalies as GitHub issues, `COMPLIANCE.md` re-read, `v0.1.0`
       signed tag — ESC-SRS-087
 - [ ] P-043 Registry: `PROJECTS.md` status `Planning → Active` at M1 and the release row at
-      M6, with the §18.4 statement (Projects repo PR)
+      M7, with the §18.4 statement (Projects repo PR)
 
 ---
 

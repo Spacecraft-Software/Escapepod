@@ -85,7 +85,7 @@ graph is 49 crates with no duplicate versions (`cargo tree -d -e normal` is empt
 | Provenance | <https://github.com/serde-rs/serde>, <https://github.com/serde-rs/json>, <https://github.com/toml-rs/toml>; all MIT OR Apache-2.0 |
 | Maintenance | All released within the last four months; the most depended-on crates in the ecosystem |
 | Security history | No RustSec advisory for any of the three |
-| Unsafe posture | 2 (`serde`), 16 (`serde_json`, number formatting), 3 (`toml`). The configuration parser is fuzzed at M6 (ESC-SRS-081) |
+| Unsafe posture | 2 (`serde`), 16 (`serde_json`, number formatting), 3 (`toml`). The configuration parser is fuzzed at M7 (ESC-SRS-081) |
 | Transitive weight | 8 for `serde` with derive, 4 more for `serde_json`, 5 more for `toml` (default features off: parse and serde only) |
 | Alternatives considered | `basic-toml` (no spans, so no line and column for unknown keys) |
 | Exit plan | None needed for `serde`; `toml` could be replaced by `toml_edit`'s parser from the same project |

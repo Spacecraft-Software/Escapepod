@@ -58,6 +58,16 @@ grabs nothing (ESC-SRS-094), so the guard has nothing to protect: 037 now reads 
 command without `--dry-run`". Characteristic failed: *Consistent* (set). No other requirement
 changed.
 
+**Re-entry, 2026-11-02 (mouse buttons, test safety).** At the maintainer's request Escape Pod takes
+over the mouse side-button shortcuts xremap provided, and device tests leave the live desktop. Added:
+ESC-NEED-009 (mouse shortcuts) and ESC-SRS-105 to 112 in a new milestone M6; the release gate
+becomes M7. ESC-SRS-053 is amended to "pointer devices that no button rule matches", since a matched
+pointer must now be grabbed (ESC-SRS-107); it returns to `baselined` and moves to M6 until
+re-verified. The §20.4 characteristics were checked on each new row: each is singular (press and
+release are separate rows, 105 and 106), verifiable by test, and bounded (112 caps a shortcut at
+eight keys, which keeps the scope clause "no macros" meaningful). The scope decision in `PRD.md`
+is amended accordingly.
+
 ### G2 — Design (2026-11-01)
 
 | Evidence | Where |

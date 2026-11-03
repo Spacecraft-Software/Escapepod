@@ -4,7 +4,7 @@
 ;;; GNU Guix package definition for Escape Pod (Standard §5.5; ESC-SRS-075).
 ;;; Build with `guix build -f packaging/guix.scm` from the repository root.
 ;;; Until the first release the source is this checkout (the git-tracked
-;;; files); the release (M6, T-102) replaces it with the signed tag's tarball
+;;; files); the release (M7, T-102) replaces it with the signed tag's tarball
 ;;; and its SHA-256. Installs the binary, the Info manual (registered by Guix's
 ;;; info-dir profile hook), and the systemd unit, udev rule, sysusers and
 ;;; tmpfiles entries under lib/ for distributions that use them; on Guix

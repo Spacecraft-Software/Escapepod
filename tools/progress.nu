@@ -5,8 +5,8 @@
 # The Standard §17.1 progress block for Escape Pod, read straight off the
 # §17.5 tracking documents:
 #
-#   M0..M6       ticked required TODO.md tasks per milestone
-#   MVP          verified required requirements, M0-M6 (the PRD's MVP line)
+#   M0..M7       ticked required TODO.md tasks per milestone
+#   MVP          verified required requirements, M0-M7 (the PRD's MVP line)
 #   TODO         ticked required tasks over required tasks
 #   PLAN         ticked required PLAN.md work packages
 #   PRD          ticked required PRD.md requirement items
@@ -24,7 +24,8 @@ const MILESTONES = {
     M3: "evdev backend and safety"
     M4: "X11 fallback backend"
     M5: "Privileges, packaging and manual"
-    M6: "Verification and release gate"
+    M6: "Mouse buttons and test safety"
+    M7: "Verification and release gate"
 }
 
 # Parses a §17.5 document into its task items with milestone and tick.
@@ -142,8 +143,8 @@ def main [
         $ms_rows
         | append { row: MVP num: $r_done den: ($prd | length) pct: (percent $r_done ($prd | length)) desc: "Escape Pod v0.1" }
         | append { row: TODO num: $t_done den: ($todo | length) pct: (percent $t_done ($todo | length)) desc: $"($t_done)/($todo | length) tasks(do $suffix $opt_t)" }
-        | append { row: PLAN num: $p_done den: ($plan | length) pct: (percent $p_done ($plan | length)) desc: "PLAN.md, M0–M6" }
-        | append { row: PRD num: $r_done den: ($prd | length) pct: (percent $r_done ($prd | length)) desc: $"PRD.md, M0–M6(do $suffix $opt_r)" }
+        | append { row: PLAN num: $p_done den: ($plan | length) pct: (percent $p_done ($plan | length)) desc: "PLAN.md, M0–M7" }
+        | append { row: PRD num: $r_done den: ($prd | length) pct: (percent $r_done ($prd | length)) desc: $"PRD.md, M0–M7(do $suffix $opt_r)" }
     )
     if $json {
         { project: "Escape Pod" rows: $rows failures: $fails } | to json --raw | print

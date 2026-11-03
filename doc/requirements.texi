@@ -19,7 +19,8 @@ figures (@file{tools/trace.nu}).
 * M3::  evdev backend and safety.
 * M4::  X11 fallback backend.
 * M5::  Privileges, packaging and manual.
-* M6::  Verification and release gate.
+* M6::  Mouse buttons and test safety.
+* M7::  Verification and release gate.
 @end menu
 
 @node M0
@@ -392,12 +393,6 @@ When a grabbed device is removed, the daemon shall emit a release for every virt
 
 Rationale: Unplugging mid-chord must not leave a stuck modifier.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: verified.
 
-@item ESC-SRS-053 @emph{Pointers read without grab}
-@anchor{ESC-SRS-053}
-The daemon shall read pointer button events from pointer devices without grabbing them.
-
-Rationale: ESC-SRS-012 needs pointer presses; grabbing would take the pointer away.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: verified.
-
 @item ESC-SRS-054 @emph{Reload}
 @anchor{ESC-SRS-054}
 When the daemon receives @code{SIGHUP} and the configuration validates, it shall apply the new configuration.
@@ -617,7 +612,67 @@ Rationale: Category B ships an ICD.  Source: Standard §23.2.  Method: inspectio
 @end table
 
 @node M6
-@section M6 --- Verification and release gate
+@section M6 --- Mouse buttons and test safety
+
+@table @asis
+@item ESC-SRS-053 @emph{Pointers read without grab}
+@anchor{ESC-SRS-053}
+The daemon shall read pointer button events from pointer devices that no button rule matches without grabbing them.
+
+Rationale: ESC-SRS-012 needs pointer presses; grabbing would take the pointer away.  Source: ESC-NEED-001.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-105 @emph{Button shortcut press}
+@anchor{ESC-SRS-105}
+When a pointer button named in a button rule is pressed, the daemon shall emit on the virtual keyboard a press of each key of the rule, in the order the rule lists them.
+
+Rationale: A side button sends a desktop shortcut, such as Super+Control+Right, with no second remapper.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-106 @emph{Button shortcut release}
+@anchor{ESC-SRS-106}
+When a pointer button named in a button rule is released, the daemon shall emit on the virtual keyboard a release of each key of the rule, in the reverse of the order the rule lists them.
+
+Rationale: Modifiers come up last, as when the shortcut is typed, so no stray key reaches the focused window.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-107 @emph{Pointer grab}
+@anchor{ESC-SRS-107}
+The daemon shall grab exclusively every pointer device that a button rule matches.
+
+Rationale: Without the grab both the button and its shortcut reach applications.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-108 @emph{Pointer pass-through}
+@anchor{ESC-SRS-108}
+The daemon shall emit every event of a grabbed pointer device that no button rule maps on its virtual pointer device, unchanged and in input order.
+
+Rationale: Motion, the wheel and the other buttons must keep working through the grab.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-109 @emph{Virtual pointer before grab}
+@anchor{ESC-SRS-109}
+When the virtual pointer device cannot be created, the daemon shall exit with code 4 before grabbing any device.
+
+Rationale: A grabbed mouse with no output is a dead pointer.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-110 @emph{X11 rejects button rules}
+@anchor{ESC-SRS-110}
+On the X11 backend, when the configuration contains a button rule, the daemon shall exit with code 2.
+
+Rationale: X RECORD cannot suppress a button, so the button would reach applications as well as its shortcut.  Source: ESC-NEED-002.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-111 @emph{Device allowlist}
+@anchor{ESC-SRS-111}
+When @code{--only-device} is given, the daemon shall not grab any device whose vendor and product identifiers it does not name.
+
+Rationale: A test or a trial run must be unable to take a real keyboard or mouse, whatever the configuration says.  Source: ESC-NEED-003.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-112 @emph{Shortcut length}
+@anchor{ESC-SRS-112}
+When a button rule names no key or more than eight keys, the CLI shall exit with code 2.
+
+Rationale: A shortcut is a few modifiers and one key; a longer list is a macro, which is out of scope.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@end table
+
+@node M7
+@section M7 --- Verification and release gate
 
 @table @asis
 @item ESC-SRS-079 @emph{Latency budget}

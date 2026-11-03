@@ -14,7 +14,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Escape Pod — PRD
 
-MVP: M0–M6 — Escape Pod v0.1
+MVP: M0–M7 — Escape Pod v0.1
 
 **Maintainer:** Mohamed Hammad — <Mohamed.Hammad@SpacecraftSoftware.org>\
 **Repository:** `Spacecraft-Software/Escapepod` (GitHub) · `/spacecraft-software/escapepod` (local)\
@@ -42,7 +42,7 @@ Every task item below carries the §20.3 identifier of the requirement it discha
 - [Interfaces](#interfaces)
 - [Out of scope](#out-of-scope)
 - [Open items for G2](#open-items-for-g2)
-- [Milestones M0–M6](#m0--foundation-and-compliance)
+- [Milestones M0–M7](#m0--foundation-and-compliance)
 
 
 ## Decisions
@@ -52,7 +52,7 @@ Settled with the maintainer on 2026-10-08.
 | Topic | Decision |
 |-------|----------|
 | Name | **Escape Pod** — binary and crates `escapepod`, `escapepod-core`, `escapepod-evdev`, `escapepod-x11` (all free on crates.io at decision time) |
-| Scope | xcape+: dual-role keys and one-to-one remaps. No layers, macros, or chords — ever |
+| Scope | xcape+: dual-role keys and one-to-one remaps, plus mouse buttons mapped to one fixed key shortcut each (added 2026-11-02, to retire xremap). No layers, macros, or keyboard chords — ever |
 | Tap model | Pass-through only: the hold key goes down at once; the tap key is added on a lone, quick release. No buffering, no added latency |
 | Platforms | Linux. evdev + uinput primary; X11 (XRecord + XTest) fallback |
 | X11 scope | Backend auto-selected (evdev when device access exists, X11 otherwise; flag overrides). Dual-role only on X11; remaps rejected with a `setxkbmap` hint |
@@ -65,6 +65,8 @@ Settled with the maintainer on 2026-10-08.
 | `--yes` | Required for `daemon run` even under an agent, tailoring agentic CLI §4 (see `COMPLIANCE.md`) |
 | Config | TOML file (per-device rules, tap timeout, reload on `SIGHUP`) plus xcape-compatible `--map 'Control_L=Escape'` |
 | Agentic CLI | `spacecraft-agentic-cli` applies in full. No MCP surface (7 commands, below the 10-command threshold) |
+| Mouse buttons (2026-11-02) | A `[[button]]` rule maps one pointer button to a shortcut of at most eight keys (press in order, release in reverse). Only pointers a rule matches are grabbed; their other events pass through a second virtual device, the virtual pointer. Unmatched pointers stay read-only. evdev backend only: X11 refuses button rules |
+| Test safety (2026-11-02) | Device tests run in the NixOS VM by default; on the host only with `ESCAPEPOD_HW_ON_HOST=1`. `--only-device VVVV:PPPP` makes the daemon refuse to grab anything else |
 
 
 ## Architecture
@@ -81,7 +83,7 @@ Settled with the maintainer on 2026-10-08.
 | Crate | Role | Rules |
 |-------|------|-------|
 | `escapepod-core` | Pure state machine: `step(event, timestamp) → output events`. No I/O, no clock, no threads | `#![forbid(unsafe_code)]`; carries the bulk of the test, property, and mutation evidence |
-| `escapepod-evdev` | Device discovery, exclusive grab, uinput device, udev hotplug, pointer read-without-grab | The only crate touching `/dev/input` and `/dev/uinput` |
+| `escapepod-evdev` | Device discovery, exclusive grab, virtual keyboard and pointer, hotplug, pointer observation and mapped-button pass-through | The only crate touching `/dev/input` and `/dev/uinput` |
 | `escapepod-x11` | XRecord observation and XTest injection through `x11rb` (pure Rust, no libX11) | Dual-role only; never remaps |
 | `escapepod` | CLI (clap), config (serde + toml), event loop, signals, status socket, diagnostics | Built to `spacecraft-cli-standard` + `spacecraft-agentic-cli` |
 
@@ -130,7 +132,7 @@ Seven interface classes are drafted into the ICD at G2 (§23), recorded in the m
 
 ## Out of scope
 
-- Layers, macros, chords, home-row modifiers, per-application rules (decided: scope is xcape+).
+- Layers, macros, keyboard chords, home-row modifiers, per-application rules (decided: scope is xcape+). A mouse button may send one fixed shortcut; nothing longer.
 - Wait-and-decide (buffered) tapping (decided: pass-through only).
 - XKB remaps on X11, FreeBSD, macOS, Windows.
 - An MCP server.
@@ -221,7 +223,6 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [x] ESC-SRS-050 Device read error releases that device
 - [x] ESC-SRS-051 Hotplugged keyboard grabbed within 1 s
 - [x] ESC-SRS-052 Removed device's held keys released
-- [x] ESC-SRS-053 Pointers read without grab
 - [x] ESC-SRS-054 `SIGHUP` applies a valid config
 - [x] ESC-SRS-055 Invalid reload keeps previous config
 - [x] ESC-SRS-056 Reload keeps grabs on matched devices
@@ -266,7 +267,20 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [x] ESC-SRS-089 Interfaces node (ICD) in the manual
 
 
-## M6 — Verification and release gate
+## M6 — Mouse buttons and test safety
+
+- [ ] ESC-SRS-053 Unmatched pointers read without grab (amended 2026-11-02)
+- [ ] ESC-SRS-105 Button press sends the shortcut's keys in order
+- [ ] ESC-SRS-106 Button release lifts them in reverse order
+- [ ] ESC-SRS-107 Pointers a button rule matches are grabbed
+- [ ] ESC-SRS-108 Unmapped pointer events pass through in order
+- [ ] ESC-SRS-109 Virtual pointer before any grab
+- [ ] ESC-SRS-110 X11 refuses button rules
+- [ ] ESC-SRS-111 `--only-device` allowlist
+- [ ] ESC-SRS-112 Shortcut length bounded
+
+
+## M7 — Verification and release gate
 
 - [ ] ESC-SRS-079 Added latency within budget
 - [ ] ESC-SRS-080 Resident memory within budget

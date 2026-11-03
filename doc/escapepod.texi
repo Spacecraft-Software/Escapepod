@@ -170,10 +170,16 @@ Escape Pod never takes a key away from a screen reader that relies on it.
 
 @item ESC-NEED-008 @emph{xcape users can move over}
 A user of xcape can switch with the mapping string they already use.
+
+@item ESC-NEED-009 @emph{Mouse shortcuts}
+A user who sends desktop shortcuts from extra mouse buttons, such as the
+side buttons switching workspaces, can do so with Escape Pod alone, so no
+second remapper competes with it for the same devices.
 @end table
 
 Constraints the maintainer will not trade away: the scope stays a dual-role
-and one-to-one remapper (no layers, macros, or chords); tapping is
+and one-to-one remapper, plus one fixed shortcut per mouse button (no
+layers, macros, or keyboard chords); tapping is
 pass-through (the hold key is emitted at once, never buffered); the platform
 is Linux; the language is Rust.
 
