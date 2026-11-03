@@ -269,15 +269,15 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M6 — Mouse buttons and test safety
 
-- [ ] ESC-SRS-053 Unmatched pointers read without grab (amended 2026-11-02)
-- [ ] ESC-SRS-105 Button press sends the shortcut's keys in order
-- [ ] ESC-SRS-106 Button release lifts them in reverse order
-- [ ] ESC-SRS-107 Pointers a button rule matches are grabbed
-- [ ] ESC-SRS-108 Unmapped pointer events pass through in order
-- [ ] ESC-SRS-109 Virtual pointer before any grab
-- [ ] ESC-SRS-110 X11 refuses button rules
-- [ ] ESC-SRS-111 `--only-device` allowlist
-- [ ] ESC-SRS-112 Shortcut length bounded
+- [x] ESC-SRS-053 Unmatched pointers read without grab (amended 2026-11-02)
+- [x] ESC-SRS-105 Button press sends the shortcut's keys in order
+- [x] ESC-SRS-106 Button release lifts them in reverse order
+- [x] ESC-SRS-107 Pointers a button rule matches are grabbed
+- [x] ESC-SRS-108 Unmapped pointer events pass through in order
+- [x] ESC-SRS-109 Virtual pointer before any grab
+- [x] ESC-SRS-110 X11 refuses button rules
+- [x] ESC-SRS-111 `--only-device` allowlist
+- [x] ESC-SRS-112 Shortcut length bounded
 
 
 ## M7 — Verification and release gate
@@ -288,7 +288,7 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [ ] ESC-SRS-082 `--map` parser survives fuzzing
 - [ ] ESC-SRS-083 Line coverage at least 80%
 - [ ] ESC-SRS-084 Surviving mutants triaged
-- [ ] ESC-SRS-085 Traceability matrix gates CI
+- [x] ESC-SRS-085 Traceability matrix gates CI
 - [ ] ESC-SRS-086 SBOM shipped per release
 - [ ] ESC-SRS-087 Clean install from all three packages
 - [ ] ESC-SRS-103 Stripped binary within budget
