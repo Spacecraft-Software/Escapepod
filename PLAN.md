@@ -173,20 +173,20 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 Added 2026-11-02 at the maintainer's request: Escape Pod takes over the mouse side-button
 shortcuts xremap provides, so xremap can be removed, and device tests leave the live desktop.
 
-- [ ] P-045 G1 re-entry: ESC-SRS-105 to 112 and ESC-NEED-009 added, ESC-SRS-053 amended
+- [x] P-045 G1 re-entry: ESC-SRS-105 to 112 and ESC-NEED-009 added, ESC-SRS-053 amended
       (and moved to M6), the release gate renumbered M7; characteristics gate re-run on the
       changed rows; gate record in `COMPLIANCE.md`
-- [ ] P-046 Core button rules: a button → shortcut map in `Rules` (1 to 8 keys), a session
+- [x] P-046 Core button rules: a button → shortcut map in `Rules` (1 to 8 keys), a session
       path for grabbed-pointer buttons through the held-keys ledger (press in order, release in
       reverse), pointer presses still marking dual-role keys used — ESC-SRS-105, 106
-- [ ] P-047 evdev pointer path: `UinputPointer` (relative axes, wheels, mouse buttons) created
+- [x] P-047 evdev pointer path: `UinputPointer` (relative axes, wheels, mouse buttons) created
       before any grab; matched pointers grabbed once idle; unmapped events passed through in
       order; faults, removal, hotplug and reload as for keyboards; unmatched pointers stay
       read-only — ESC-SRS-053, 107, 108, 109
-- [ ] P-048 Config and CLI: `[[button]]` globally and per device, limits; `config check`,
+- [x] P-048 Config and CLI: `[[button]]` globally and per device, limits; `config check`,
       `--dry-run`, `device list` and `schema` show button rules and grabbed pointers; ICD and
       config schema; the X11 backend refuses button rules — ESC-SRS-110, 112
-- [ ] P-049 Test safety: `--only-device VVVV:PPPP`; hardware tests run in the NixOS VM by
+- [x] P-049 Test safety: `--only-device VVVV:PPPP`; hardware tests run in the NixOS VM by
       default and on the host only with `ESCAPEPOD_HW_ON_HOST=1`; the VM test gains a mouse
       fixture — ESC-SRS-111
 - [ ] P-050 Retire xremap: manual section on mouse buttons and an xremap migration note; the
