@@ -119,7 +119,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger
           sudo chmod 0666 /dev/uinput
+      # GitHub's disposable runner is already a VM. Explicitly opt into
+      # its uinput loopback suite; local invocations still default to NixOS.
       - run: nu tools/ci.nu --only hardware
+        env:
+          ESCAPEPOD_HW_ON_HOST: "1"
 
   msrv:
     name: MSRV check and test

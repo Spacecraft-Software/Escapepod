@@ -135,6 +135,8 @@ fn try_rig(name: &str, config: &str) -> Option<Rig> {
         .args([
             "daemon",
             "run",
+            "--backend",
+            "evdev",
             "--yes",
             "--verbose",
             "--only-device",
