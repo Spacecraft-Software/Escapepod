@@ -386,22 +386,32 @@ fn agent_environment_selects_json_without_colour() {
     );
 }
 
-/// Every command, success and error paths alike, run off a terminal. The
-/// list covers the whole command tree, so a command added later without an
-/// entry here is the gap to look for.
-const EVERY_COMMAND: [&[&str]; 12] = [
-    &["describe"],
-    &["describe", "--format", "explore"],
-    &["describe", "--accessible"],
-    &["schema"],
-    &["schema", "daemon", "run"],
-    &["device", "list"],
-    &["config", "check", "--map", "Caps_Lock=Escape"],
-    &["config", "check", "--map", "Bad=Escape"],
-    &["daemon", "run", "--map", "Caps_Lock=Escape", "--dry-run"],
-    &["daemon", "run", "--map", "Caps_Lock=Escape"],
-    &["daemon", "status"],
-    &["event", "monitor"],
+/// Every command with the exit code it must give off a terminal, so each
+/// entry is known to exercise the path it names: help, success or a
+/// particular error. The list covers the whole command tree, so a command
+/// added later without an entry here is the gap to look for.
+const EVERY_COMMAND: [(&[&str], i32); 14] = [
+    (&["--help"], 0),
+    (&["daemon", "run", "--help"], 0),
+    (&["describe"], 0),
+    (&["describe", "--format", "explore"], 0),
+    (&["describe", "--accessible"], 0),
+    (&["schema"], 0),
+    (&["schema", "daemon", "run"], 0),
+    (&["device", "list"], 0),
+    (&["config", "check", "--map", "Caps_Lock=Escape"], 0),
+    // Usage error: unknown key name.
+    (&["config", "check", "--map", "Bad=Escape"], 2),
+    (
+        &["daemon", "run", "--map", "Caps_Lock=Escape", "--dry-run"],
+        0,
+    ),
+    // Refused without `--yes` off a terminal (ESC-SRS-037).
+    (&["daemon", "run", "--map", "Caps_Lock=Escape"], 2),
+    // No daemon: the status socket is absent.
+    (&["daemon", "status"], 3),
+    // The fake event nodes are unreadable.
+    (&["event", "monitor"], 4),
 ];
 
 /// Asserts that neither stream of `o` holds an ESC byte, so no SGR colour,
@@ -423,12 +433,13 @@ fn assert_no_escape(o: &Output, what: &str) {
 fn no_command_emits_an_escape_sequence_when_piped_or_under_an_agent() {
     let root = scratch("no-escape");
     let socket = root.join("no-socket");
-    for args in EVERY_COMMAND {
+    for (args, code) in EVERY_COMMAND {
         let piped = cmd(&root)
             .env("ESCAPEPOD_SOCKET", &socket)
             .args(args)
             .output()
             .unwrap();
+        assert_eq!(piped.status.code(), Some(code), "piped {args:?}");
         assert_no_escape(&piped, &format!("piped {args:?}"));
         for (k, v) in [
             ("AI_AGENT", agent_value()),
@@ -443,6 +454,7 @@ fn no_command_emits_an_escape_sequence_when_piped_or_under_an_agent() {
                 .args(["--color", "always"])
                 .output()
                 .unwrap();
+            assert_eq!(o.status.code(), Some(code), "{k}={v} {args:?}");
             assert_no_escape(&o, &format!("{k}={v} {args:?}"));
         }
     }
