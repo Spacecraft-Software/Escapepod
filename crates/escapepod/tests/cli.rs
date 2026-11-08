@@ -386,6 +386,80 @@ fn agent_environment_selects_json_without_colour() {
     );
 }
 
+/// Every command with the exit code it must give off a terminal, so each
+/// entry is known to exercise the path it names: help, success or a
+/// particular error. The list covers the whole command tree, so a command
+/// added later without an entry here is the gap to look for.
+const EVERY_COMMAND: [(&[&str], i32); 14] = [
+    (&["--help"], 0),
+    (&["daemon", "run", "--help"], 0),
+    (&["describe"], 0),
+    (&["describe", "--format", "explore"], 0),
+    (&["describe", "--accessible"], 0),
+    (&["schema"], 0),
+    (&["schema", "daemon", "run"], 0),
+    (&["device", "list"], 0),
+    (&["config", "check", "--map", "Caps_Lock=Escape"], 0),
+    // Usage error: unknown key name.
+    (&["config", "check", "--map", "Bad=Escape"], 2),
+    (
+        &["daemon", "run", "--map", "Caps_Lock=Escape", "--dry-run"],
+        0,
+    ),
+    // Refused without `--yes` off a terminal (ESC-SRS-037).
+    (&["daemon", "run", "--map", "Caps_Lock=Escape"], 2),
+    // No daemon: the status socket is absent.
+    (&["daemon", "status"], 3),
+    // The fake event nodes are unreadable.
+    (&["event", "monitor"], 4),
+];
+
+/// Asserts that neither stream of `o` holds an ESC byte, so no SGR colour,
+/// cursor movement or terminal-protocol sequence (OSC, APC, CSI u) leaked.
+fn assert_no_escape(o: &Output, what: &str) {
+    assert!(
+        !o.stdout.contains(&0x1b) && !o.stderr.contains(&0x1b),
+        "{what}: escape byte in output\nstdout: {:?}\nstderr: {:?}",
+        String::from_utf8_lossy(&o.stdout),
+        String::from_utf8_lossy(&o.stderr)
+    );
+}
+
+// Escape Pod speaks no terminal protocol (COMPLIANCE.md, the
+// `spacecraft-tui-protocols` row); this is that skill's §6 audit check 1:
+// piped output and agent output carry no escape sequence, even when colour
+// is forced. Verifies: ESC-SRS-090
+#[test]
+fn no_command_emits_an_escape_sequence_when_piped_or_under_an_agent() {
+    let root = scratch("no-escape");
+    let socket = root.join("no-socket");
+    for (args, code) in EVERY_COMMAND {
+        let piped = cmd(&root)
+            .env("ESCAPEPOD_SOCKET", &socket)
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(piped.status.code(), Some(code), "piped {args:?}");
+        assert_no_escape(&piped, &format!("piped {args:?}"));
+        for (k, v) in [
+            ("AI_AGENT", agent_value()),
+            ("AGENT", "goose".into()),
+            ("CI", "true".into()),
+        ] {
+            let o = cmd(&root)
+                .env("ESCAPEPOD_SOCKET", &socket)
+                .env(k, &v)
+                .env("FORCE_COLOR", "1")
+                .args(args)
+                .args(["--color", "always"])
+                .output()
+                .unwrap();
+            assert_eq!(o.status.code(), Some(code), "{k}={v} {args:?}");
+            assert_no_escape(&o, &format!("{k}={v} {args:?}"));
+        }
+    }
+}
+
 // Verifies: ESC-SRS-091
 #[test]
 fn agents_are_never_prompted() {
