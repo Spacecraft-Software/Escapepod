@@ -22,9 +22,11 @@ mod touch;
 #[doc(inline)]
 pub use discover::{DeviceInfo, DeviceKind, OWN_NAME_PREFIX, OWN_PRODUCT, OWN_VENDOR, info, scan};
 #[doc(inline)]
-pub use io::{Keyboard, Opener, Pointer, PointerEvent, Sink};
+pub use io::{Keyboard, Opener, Pointer, PointerEvent, Sink, Touchpad};
 #[doc(inline)]
-pub use real::{EvdevKeyboard, EvdevOpener, EvdevPointer, UinputKeyboard, UinputPointer};
+pub use real::{
+    EvdevKeyboard, EvdevOpener, EvdevPointer, EvdevTouchpad, UinputKeyboard, UinputPointer,
+};
 #[doc(inline)]
 pub use touch::TouchDecoder;
 

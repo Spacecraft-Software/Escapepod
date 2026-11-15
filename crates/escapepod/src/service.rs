@@ -851,6 +851,7 @@ mod tests {
             vendor: 1,
             product: 1,
             kind: DeviceKind::Keyboard,
+            touchpad: false,
         };
         let mut m = Monitor::open(&mut opener, &cfg, &[info]);
         assert!(!h.borrow().grabbed, "monitor never grabs");

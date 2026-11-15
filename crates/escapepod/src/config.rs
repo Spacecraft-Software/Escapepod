@@ -604,6 +604,7 @@ keys = ["KEY_LEFT"]
             vendor,
             product,
             kind: escapepod_evdev::DeviceKind::Keyboard,
+            touchpad: false,
         }
     }
 

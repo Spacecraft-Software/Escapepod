@@ -687,6 +687,7 @@ mod tests {
             vendor: 1,
             product: 1,
             kind: DeviceKind::Keyboard,
+            touchpad: false,
         }
     }
 
@@ -731,6 +732,7 @@ mod tests {
     fn mouse() -> DeviceInfo {
         DeviceInfo {
             kind: DeviceKind::Pointer,
+            touchpad: false,
             ..kb("/dev/input/event7", "mouse")
         }
     }
@@ -1128,6 +1130,7 @@ mod tests {
         d.add(&kb("/dev/input/event0", "laptop"), t(0));
         let ptr = DeviceInfo {
             kind: DeviceKind::Pointer,
+            touchpad: false,
             ..kb("/dev/input/event2", "touchpad")
         };
         assert!(d.add(&ptr, t(0)));

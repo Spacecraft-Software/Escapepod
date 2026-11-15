@@ -13,9 +13,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use escapepod_core::KeyEvent;
+use escapepod_core::{KeyEvent, Resolution, TouchInput};
 
-use crate::io::{Keyboard, Opener, Pointer, PointerEvent, Sink};
+use crate::io::{Keyboard, Opener, Pointer, PointerEvent, Sink, Touchpad};
 
 /// The test's view of one fake keyboard.
 #[derive(Debug, Default)]
@@ -158,6 +158,39 @@ impl Sink for FakeSink {
     }
 }
 
+/// The state behind a [`FakeTouchpad`]: queued inputs and clicks, its
+/// resolution, and whether it was removed.
+#[derive(Debug, Default)]
+pub struct TouchpadState {
+    /// Inputs the next read returns.
+    pub inputs: VecDeque<TouchInput>,
+    /// Clicks the next read reports.
+    pub presses: usize,
+    /// The resolution it reports.
+    pub resolution: Option<Resolution>,
+    /// The next read fails with `ENODEV`.
+    pub gone: bool,
+}
+
+/// A fake touchpad over a shared [`TouchpadState`].
+#[derive(Debug)]
+pub struct FakeTouchpad(Rc<RefCell<TouchpadState>>);
+
+impl Touchpad for FakeTouchpad {
+    fn resolution(&self) -> Option<Resolution> {
+        self.0.borrow().resolution
+    }
+
+    fn read_touch(&mut self, out: &mut Vec<TouchInput>) -> io::Result<usize> {
+        let mut st = self.0.borrow_mut();
+        if st.gone {
+            return Err(io::Error::from_raw_os_error(19));
+        }
+        out.extend(st.inputs.drain(..));
+        Ok(std::mem::take(&mut st.presses))
+    }
+}
+
 /// A fake opener over a table of paths; records every path opened.
 #[derive(Debug, Default, Clone)]
 pub struct FakeOpener {
@@ -169,6 +202,8 @@ pub struct FakeOpener {
     pub pointers: Rc<RefCell<BTreeMap<PathBuf, Rc<RefCell<usize>>>>>,
     /// Every path opened, in order.
     pub opened: Rc<RefCell<Vec<PathBuf>>>,
+    /// The touchpads by path.
+    pub touchpads: Rc<RefCell<BTreeMap<PathBuf, Rc<RefCell<TouchpadState>>>>>,
 }
 
 impl FakeOpener {
@@ -186,6 +221,23 @@ impl FakeOpener {
             .insert(path.into(), Rc::clone(&state));
         state
     }
+    /// Adds a touchpad at `path` with `resolution` and returns its state.
+    #[must_use]
+    pub fn add_touchpad(
+        &self,
+        path: &str,
+        resolution: Option<Resolution>,
+    ) -> Rc<RefCell<TouchpadState>> {
+        let state = Rc::new(RefCell::new(TouchpadState {
+            resolution,
+            ..TouchpadState::default()
+        }));
+        self.touchpads
+            .borrow_mut()
+            .insert(path.into(), Rc::clone(&state));
+        state
+    }
+
     /// Adds a keyboard at `path` and returns its handle.
     #[must_use]
     pub fn add_keyboard(&self, path: &str) -> KeyboardHandle {
@@ -210,6 +262,7 @@ impl FakeOpener {
 impl Opener for FakeOpener {
     type Keyboard = FakeKeyboard;
     type Pointer = FakePointer;
+    type Touchpad = FakeTouchpad;
 
     fn keyboard(&mut self, path: &Path) -> io::Result<FakeKeyboard> {
         self.opened.borrow_mut().push(path.to_path_buf());
@@ -235,6 +288,15 @@ impl Opener for FakeOpener {
                         .unwrap_or_default(),
                 )
             })
+            .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
+    }
+
+    fn touchpad(&mut self, path: &Path) -> io::Result<FakeTouchpad> {
+        self.opened.borrow_mut().push(path.to_path_buf());
+        self.touchpads
+            .borrow()
+            .get(path)
+            .map(|s| FakeTouchpad(Rc::clone(s)))
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
 }
