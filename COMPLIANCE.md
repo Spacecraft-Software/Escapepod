@@ -69,6 +69,22 @@ release are separate rows, 105 and 106), verifiable by test, and bounded (112 ca
 eight keys, which keeps the scope clause "no macros" meaningful). The scope decision in `PRD.md`
 is amended accordingly.
 
+**Re-entry, 2026-11-15 (touchpad gestures).** At the maintainer's request Escape Pod sends a desktop
+shortcut for a three- or four-finger touchpad swipe, so the maintainer's X11 sessions can drop
+Touchégg and a COSMIC build its three-finger compositor patch. Added: ESC-NEED-010 (touchpad swipes)
+and ESC-SRS-113 to 127 in a new milestone M7; the release gate becomes M8. ESC-SRS-107 is amended to
+"every pointer device other than a touchpad that a button rule matches": a touchpad is a pointer, a
+grab would take its multi-touch motion away (the virtual pointer carries relative motion only), and
+113 now requires touchpads be read without grab, so the two rows were inconsistent; 107 returns to
+`baselined` and moves to M7 until re-verified. The recogniser is pure Rust in `escapepod-core`, fed
+the kernel's multi-touch events (ESC-SRS-115); libinput was weighed and declined, because it would
+bring back the C libraries (libinput, libudev, libevdev, mtdev, behind an unsafe FFI layer) that the
+G2 design removed. The §20.4 characteristics were checked on each new row: each is singular (press
+and release are separate rows, 119 and 120; end and cancel are 116 and 118), verifiable by test, and
+bounded: three or four fingers only (122), eight keys (123), one shortcut per swipe (121), and a
+threshold of 5 to 100 mm (127). ESC-NEED-010 traces to 113 to 127. The scope decision in `PRD.md` is
+amended accordingly.
+
 ### G2 — Design (2026-11-01)
 
 | Evidence | Where |

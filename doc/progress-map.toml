@@ -38,7 +38,7 @@ requirements = ["ESC-SRS-007", "ESC-SRS-008"]
 [[plan]]
 id = "P-007"
 rule = "landed"
-reason = "Tooling for ESC-SRS-085, which P-041 verifies at M7"
+reason = "Tooling for ESC-SRS-085, which P-041 verifies at M8"
 
 [[plan]]
 id = "P-008"
@@ -206,7 +206,7 @@ requirements = ["ESC-SRS-105", "ESC-SRS-106"]
 
 [[plan]]
 id = "P-047"
-requirements = ["ESC-SRS-053", "ESC-SRS-107", "ESC-SRS-108", "ESC-SRS-109"]
+requirements = ["ESC-SRS-053", "ESC-SRS-108", "ESC-SRS-109"]
 
 [[plan]]
 id = "P-048"
@@ -220,3 +220,30 @@ requirements = ["ESC-SRS-111"]
 id = "P-050"
 rule = "landed"
 reason = "Retiring xremap: done when the maintainer's configuration carries the side buttons"
+
+[[plan]]
+id = "P-051"
+rule = "landed"
+reason = "Gate re-entry: done when it lands with its gate record"
+
+[[plan]]
+id = "P-052"
+requirements = ["ESC-SRS-115", "ESC-SRS-116", "ESC-SRS-117", "ESC-SRS-118", "ESC-SRS-119", "ESC-SRS-120", "ESC-SRS-121", "ESC-SRS-125"]
+
+[[plan]]
+id = "P-053"
+requirements = ["ESC-SRS-107", "ESC-SRS-113", "ESC-SRS-114"]
+
+[[plan]]
+id = "P-054"
+requirements = ["ESC-SRS-122", "ESC-SRS-123", "ESC-SRS-124", "ESC-SRS-126", "ESC-SRS-127"]
+
+[[plan]]
+id = "P-055"
+rule = "landed"
+reason = "Evidence for the M7 rows, which P-052 to P-054 verify"
+
+[[plan]]
+id = "P-056"
+rule = "landed"
+reason = "Downstream: done when the maintainer's configuration carries the swipes"

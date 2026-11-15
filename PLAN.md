@@ -14,7 +14,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Escape Pod — Plan
 
-MVP: M0–M7 — Escape Pod v0.1
+MVP: M0–M8 — Escape Pod v0.1
 
 This is the §17.5 plan for [`PRD.md`](PRD.md). It cuts the PRD's milestones into work
 packages; the requirements themselves live in `doc/requirements.toml` (rendered into
@@ -63,7 +63,7 @@ for the manual and ICD; `steelbore-color-palette` and `spacecraft-accessibility-
 - [x] P-007 Traceability: `tools/trace.nu` (markers `Verifies:`/`Implements:` → matrix; fails
       on unknown id or `implemented`/`verified` without marker; `--release` orphans; emits the
       §17.1 block) and `tools/progress.nu` (TODO/PLAN rows via `doc/progress-map.toml`) —
-      ESC-SRS-085 (verified at M7)
+      ESC-SRS-085 (verified at M8)
 - [x] P-008 G2: `Design` node (architecture, serial `poll(2)` trade-off, safety and privacy
       models, device-I/O seam), `DEPENDENCIES.md` trust path (`evdev`, `nix`, `x11rb`,
       `toml`, `serde`, `serde_json`, `clap`, `jiff`; poll primitive), `Interfaces` node skeleton
@@ -193,7 +193,40 @@ shortcuts xremap provides, so xremap can be removed, and device tests leave the 
       maintainer's configuration maps the side buttons, and its xremap ignore rule goes once
       xremap is removed
 
-## M7 — Verification and release gate
+## M7 — Touchpad gestures
+
+Added 2026-11-15 at the maintainer's request: three- and four-finger touchpad swipes send a
+desktop shortcut, so the maintainer's X11 sessions can drop Touchégg and a COSMIC build can drop
+its three-finger compositor patch. Recognition is pure Rust in the engine, not libinput, which
+would bring back C libraries the G2 design removed.
+
+- [ ] P-051 G1 re-entry: ESC-SRS-113 to 127 and ESC-NEED-010 added, ESC-SRS-107 amended (and
+      moved to M7), the release gate renumbered M8; characteristics gate run on the changed rows;
+      gate record in `COMPLIANCE.md`
+- [ ] P-052 Core swipe recogniser: touchpad events in (finger-count keys, slot positions in
+      device units with the touchpad's resolution), swipe begin, accumulate, end on a falling
+      count, cancel on a rising one; direction by the dominant axis; the threshold in mm; a
+      gesture → shortcut map in `Rules` (1 to 8 keys); the shortcut pressed in order and
+      released in reverse through the held-keys ledger; held dual-role keys marked used —
+      ESC-SRS-115, 116, 117, 118, 119, 120, 121, 125
+- [ ] P-053 evdev touchpad path: touchpads recognised from their properties and multi-touch
+      axes, opened read-only and never grabbed; resolution from the axis info, a touchpad
+      without one refused for gestures with a warning; removal, hotplug and reload as for
+      pointers; button rules never grab a touchpad — ESC-SRS-107, 113, 114
+- [ ] P-054 Config and CLI: `[[gesture]]` globally and per device, with limits (fingers,
+      direction, keys, threshold); `config check`, `--dry-run`, `device list` and `schema` show
+      gesture rules and observed touchpads; ICD and config schema; the X11 backend refuses
+      gesture rules; swipes reported by finger count, direction and decision only —
+      ESC-SRS-122, 123, 124, 126, 127
+- [ ] P-055 Evidence: recorded multi-touch traces replayed through the engine; a property test
+      that output stays balanced with swipes interleaved; the VM test gains a uinput
+      multi-touch touchpad fixture (three-finger left swipe → Super+Control+Right, pointer
+      motion still passing)
+- [ ] P-056 Downstream: manual section on touchpad swipes and a Touchégg migration note; the
+      maintainer's configuration maps the swipes in its X11 sessions and on COSMIC, and
+      retires Touchégg and the cosmic-comp three-finger patch
+
+## M8 — Verification and release gate
 
 - [ ] P-038 Budget gates: `tools/latency-gate.nu` (uinput loopback, p99 ≤ 1 ms, `taskset -c
       0,1`), `tools/rss-gate.nu` (≤ 8 MiB), binary-size row declared; margins and bands in
@@ -209,7 +242,7 @@ shortcuts xremap provides, so xremap can be removed, and device tests leave the 
       `doc/release-0.1.md`, open anomalies as GitHub issues, `COMPLIANCE.md` re-read, `v0.1.0`
       signed tag — ESC-SRS-087
 - [ ] P-043 Registry: `PROJECTS.md` status `Planning → Active` at M1 and the release row at
-      M7, with the §18.4 statement (Projects repo PR)
+      M8, with the §18.4 statement (Projects repo PR)
 
 ---
 

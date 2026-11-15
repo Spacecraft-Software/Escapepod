@@ -175,11 +175,17 @@ A user of xcape can switch with the mapping string they already use.
 A user who sends desktop shortcuts from extra mouse buttons, such as the
 side buttons switching workspaces, can do so with Escape Pod alone, so no
 second remapper competes with it for the same devices.
+
+@item ESC-NEED-010 @emph{Touchpad swipes}
+A user whose desktop gives three- and four-finger touchpad swipes no
+meaning, such as an X11 window manager or a compositor that handles only
+some finger counts, can send a desktop shortcut with a swipe, such as
+switching workspaces, with Escape Pod alone.
 @end table
 
 Constraints the maintainer will not trade away: the scope stays a dual-role
-and one-to-one remapper, plus one fixed shortcut per mouse button (no
-layers, macros, or keyboard chords); tapping is
+and one-to-one remapper, plus one fixed shortcut per mouse button and per
+touchpad swipe (no layers, macros, or keyboard chords); tapping is
 pass-through (the hold key is emitted at once, never buffered); the platform
 is Linux; the language is Rust.
 

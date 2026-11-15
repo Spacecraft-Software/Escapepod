@@ -20,7 +20,8 @@ figures (@file{tools/trace.nu}).
 * M4::  X11 fallback backend.
 * M5::  Privileges, packaging and manual.
 * M6::  Mouse buttons and test safety.
-* M7::  Verification and release gate.
+* M7::  Touchpad gestures.
+* M8::  Verification and release gate.
 @end menu
 
 @node M0
@@ -633,12 +634,6 @@ When a pointer button named in a button rule is released, the daemon shall emit 
 
 Rationale: Modifiers come up last, as when the shortcut is typed, so no stray key reaches the focused window.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: verified.
 
-@item ESC-SRS-107 @emph{Pointer grab}
-@anchor{ESC-SRS-107}
-The daemon shall grab exclusively every pointer device that a button rule matches.
-
-Rationale: Without the grab both the button and its shortcut reach applications.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: verified.
-
 @item ESC-SRS-108 @emph{Pointer pass-through}
 @anchor{ESC-SRS-108}
 The daemon shall emit every event of a grabbed pointer device that no button rule maps on its virtual pointer device, unchanged and in input order.
@@ -672,7 +667,109 @@ Rationale: A shortcut is a few modifiers and one key; a longer list is a macro, 
 @end table
 
 @node M7
-@section M7 --- Verification and release gate
+@section M7 --- Touchpad gestures
+
+@table @asis
+@item ESC-SRS-107 @emph{Pointer grab}
+@anchor{ESC-SRS-107}
+The daemon shall grab exclusively every pointer device other than a touchpad that a button rule matches.
+
+Rationale: Without the grab both the button and its shortcut reach applications.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-113 @emph{Touchpads read without grab}
+@anchor{ESC-SRS-113}
+The daemon shall read every touchpad that a gesture rule matches without grabbing it.
+
+Rationale: The touchpad must go on moving the pointer and scrolling; a swipe is observed, never taken away.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-114 @emph{Touchpads opened read-only}
+@anchor{ESC-SRS-114}
+The daemon shall open every touchpad it reads with read-only access.
+
+Rationale: The udev rule grants the @code{escapepod} account read access alone, and nothing is ever written to a touchpad.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-115 @emph{Swipes from kernel multi-touch events}
+@anchor{ESC-SRS-115}
+The daemon shall recognise touchpad swipes from the kernel's multi-touch events, taking the finger count from the @code{BTN_TOOL_TRIPLETAP} and @code{BTN_TOOL_QUADTAP} keys.
+
+Rationale: Keeps the build free of C libraries, as the G2 design settled, and puts the recogniser in the I/O-free engine, where every decision replays in tests (maintainer decision, 2026-11-15, over libinput).  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-116 @emph{Swipe direction}
+@anchor{ESC-SRS-116}
+When the finger count of a swipe falls, the daemon shall end the swipe and classify it as left, right, up or down by the larger of its accumulated horizontal and vertical motion.
+
+Rationale: One swipe has one direction; a diagonal goes to the axis it moved along most.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-117 @emph{Swipe threshold}
+@anchor{ESC-SRS-117}
+When a swipe ends with less accumulated motion along its direction than the matching gesture rule's threshold, the daemon shall emit nothing for it.
+
+Rationale: A short brush of three fingers is not a request to switch workspaces.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-118 @emph{Cancelled swipe}
+@anchor{ESC-SRS-118}
+When the finger count rises during a swipe, the daemon shall emit nothing for that swipe.
+
+Rationale: A fourth finger landing midway turns the gesture into another one; the first was not completed.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-119 @emph{Swipe shortcut press}
+@anchor{ESC-SRS-119}
+When a swipe that a gesture rule matches ends, the daemon shall emit on the virtual keyboard a press of each key of the rule, in the order the rule lists them.
+
+Rationale: A swipe sends a desktop shortcut, such as Super+Control+Right, as a side button does.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-120 @emph{Swipe shortcut release}
+@anchor{ESC-SRS-120}
+After pressing a swipe's shortcut, the daemon shall emit on the virtual keyboard a release of each key of the rule, in the reverse of the order the rule lists them.
+
+Rationale: Modifiers come up last, as when the shortcut is typed, so no stray key reaches the focused window.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-121 @emph{One shortcut per swipe}
+@anchor{ESC-SRS-121}
+The daemon shall emit at most one shortcut for each swipe.
+
+Rationale: A swipe is one request; repeating it while the fingers move would skip workspaces.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-122 @emph{Gesture finger count}
+@anchor{ESC-SRS-122}
+When a gesture rule names a finger count other than three or four, the CLI shall exit with code 2.
+
+Rationale: Two fingers scroll and five are rare; three and four are the swipe counts every desktop uses.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-123 @emph{Gesture shortcut length}
+@anchor{ESC-SRS-123}
+When a gesture rule names no key or more than eight keys, the CLI shall exit with code 2.
+
+Rationale: A shortcut is a few modifiers and one key; a longer list is a macro, which is out of scope.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-124 @emph{X11 rejects gesture rules}
+@anchor{ESC-SRS-124}
+On the X11 backend, when the configuration contains a gesture rule, the daemon shall exit with code 2.
+
+Rationale: The X11 backend has no device access, so it cannot read a touchpad.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-125 @emph{Swipe marks dual-role keys used}
+@anchor{ESC-SRS-125}
+When a swipe that a gesture rule matches ends while a dual-role key is held, the engine shall not emit the tap key for that key's release.
+
+Rationale: The swipe's shortcut is a use of the held key, as a pointer button is (ESC-SRS-012).  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-126 @emph{Swipe reporting}
+@anchor{ESC-SRS-126}
+The daemon shall report a swipe in its logs, status socket and @code{event monitor} by finger count, direction and decision alone, never by position or motion values.
+
+Rationale: Touchpad motion is input data; like unmanaged keys it stays inside the process.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-127 @emph{Gesture threshold in millimetres}
+@anchor{ESC-SRS-127}
+When a gesture rule names a threshold outside 5 to 100 millimetres, the CLI shall exit with code 2.
+
+Rationale: Millimetres, measured with the touchpad's own resolution, mean the same swipe on every touchpad; the bounds keep a rule from firing on a twitch or never firing at all.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@end table
+
+@node M8
+@section M8 --- Verification and release gate
 
 @table @asis
 @item ESC-SRS-079 @emph{Latency budget}
