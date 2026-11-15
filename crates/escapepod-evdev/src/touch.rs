@@ -42,12 +42,23 @@ fn tool_fingers(code: u16) -> Option<u8> {
     }
 }
 
+/// One slot's state. The kernel keeps a slot's position across contacts
+/// and reports only coordinates that change, so a new contact in a slot can
+/// arrive with a tracking id and no position: the position is the slot's,
+/// not the contact's, and outlives a lift.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct Contact {
-    id: i32,
+struct Slot {
+    /// The tracking id of the contact in the slot, if one is down.
+    id: Option<i32>,
     x: i32,
     y: i32,
 }
+
+/// The scale the mean motion is carried at: 2520 is the least common
+/// multiple of 1 to 10, so dividing a frame's summed motion by any number of
+/// contacts up to [`SLOTS`] is exact, and no fraction of a unit is ever lost
+/// to truncation between frames.
+const SCALE: i64 = 2520;
 
 /// Decodes one touchpad's multi-touch events.
 ///
@@ -78,10 +89,12 @@ struct Contact {
 #[derive(Clone, Debug, Default)]
 pub struct TouchDecoder {
     slot: usize,
-    /// Contacts as the current frame builds them.
-    current: [Option<Contact>; SLOTS],
-    /// Contacts at the last `SYN_REPORT`.
-    previous: [Option<Contact>; SLOTS],
+    /// Slots as the current frame builds them.
+    current: [Slot; SLOTS],
+    /// Slots at the last `SYN_REPORT`.
+    previous: [Slot; SLOTS],
+    /// Mean motion not yet reported, in units of 1/[`SCALE`].
+    carry: (i64, i64),
     /// The `BTN_TOOL_*` key held, as a finger count.
     tool: u8,
     /// The finger count last reported.
@@ -112,21 +125,10 @@ impl TouchDecoder {
                 self.slot = usize::try_from(value).unwrap_or(0).min(SLOTS - 1);
             }
             (EV_ABS, ABS_MT_TRACKING_ID) => {
-                self.current[self.slot] = (value >= 0).then_some(Contact {
-                    id: value,
-                    ..self.current[self.slot].unwrap_or_default()
-                });
+                self.current[self.slot].id = (value >= 0).then_some(value);
             }
-            (EV_ABS, ABS_MT_POSITION_X) => {
-                if let Some(c) = self.current[self.slot].as_mut() {
-                    c.x = value;
-                }
-            }
-            (EV_ABS, ABS_MT_POSITION_Y) => {
-                if let Some(c) = self.current[self.slot].as_mut() {
-                    c.y = value;
-                }
-            }
+            (EV_ABS, ABS_MT_POSITION_X) => self.current[self.slot].x = value,
+            (EV_ABS, ABS_MT_POSITION_Y) => self.current[self.slot].y = value,
             _ => {}
         }
     }
@@ -139,22 +141,33 @@ impl TouchDecoder {
             self.previous = self.current;
             return;
         }
+        // Only contacts down in both frames, with the same tracking id,
+        // move: a contact that just landed or lifted adds no jump.
         let (mut sx, mut sy, mut n) = (0i64, 0i64, 0i64);
         let kept = self
             .current
             .iter()
             .zip(&self.previous)
-            .filter_map(|(now, before)| Some((now.as_ref()?, before.as_ref()?)))
-            .filter(|(a, b)| a.id == b.id);
+            .filter(|(a, b)| a.id.is_some() && a.id == b.id);
         for (a, b) in kept {
             sx += i64::from(a.x) - i64::from(b.x);
             sy += i64::from(a.y) - i64::from(b.y);
             n += 1;
         }
-        if n > 0 && (sx != 0 || sy != 0) {
+        if n > 0 {
+            self.carry.0 = self.carry.0.saturating_add(sx.saturating_mul(SCALE) / n);
+            self.carry.1 = self.carry.1.saturating_add(sy.saturating_mul(SCALE) / n);
+        } else {
+            // No contact carried over: a remainder belongs to no motion.
+            self.carry = (0, 0);
+        }
+        let (dx, dy) = (self.carry.0 / SCALE, self.carry.1 / SCALE);
+        if dx != 0 || dy != 0 {
+            self.carry.0 -= dx * SCALE;
+            self.carry.1 -= dy * SCALE;
             out.push(TouchInput::Motion {
-                dx: clamp(sx / n),
-                dy: clamp(sy / n),
+                dx: clamp(dx),
+                dy: clamp(dy),
             });
         }
         if self.tool != self.reported {
@@ -270,6 +283,62 @@ mod tests {
         assert!(lost.is_empty());
         let next = feed(&mut dec, &[(EV_ABS, ABS_MT_POSITION_X, 110), SYN]);
         assert_eq!(next, [TouchInput::Motion { dx: 10, dy: 0 }]);
+    }
+
+    #[test]
+    fn a_new_contact_keeps_the_slot_position_the_kernel_retained() {
+        // A contact lifts at x = 3000; the next lands in the same slot at
+        // the same x, so the kernel sends the tracking id but no position.
+        let mut dec = TouchDecoder::default();
+        let mut first = land(0, 1, 3000, 500).to_vec();
+        first.push(SYN);
+        feed(&mut dec, &first);
+        feed(
+            &mut dec,
+            &[
+                (EV_ABS, ABS_MT_SLOT, 0),
+                (EV_ABS, ABS_MT_TRACKING_ID, -1),
+                SYN,
+            ],
+        );
+        assert!(feed(&mut dec, &[(EV_ABS, ABS_MT_TRACKING_ID, 2), SYN]).is_empty());
+        // It moves by one unit: one unit of motion, not 3001.
+        let moved = feed(&mut dec, &[(EV_ABS, ABS_MT_POSITION_X, 3001), SYN]);
+        assert_eq!(moved, [TouchInput::Motion { dx: 1, dy: 0 }]);
+    }
+
+    #[test]
+    fn sub_unit_mean_motion_is_carried_not_lost() {
+        // Three contacts; one moves a unit per frame, in turn: a third of a
+        // unit of mean motion each frame, a whole unit every three.
+        let mut dec = TouchDecoder::default();
+        let mut frame = Vec::new();
+        for (slot, id) in [(0, 1), (1, 2), (2, 3)] {
+            frame.extend(land(slot, id, 1000, 500));
+        }
+        frame.push(SYN);
+        feed(&mut dec, &frame);
+        let mut x = [1000; 3];
+        let mut total = 0;
+        for step in 0..300usize {
+            let slot = step % 3;
+            x[slot] += 1;
+            let slot_value = i32::try_from(slot).unwrap_or(0);
+            for input in feed(
+                &mut dec,
+                &[
+                    (EV_ABS, ABS_MT_SLOT, slot_value),
+                    (EV_ABS, ABS_MT_POSITION_X, x[slot]),
+                    SYN,
+                ],
+            ) {
+                if let TouchInput::Motion { dx, .. } = input {
+                    total += dx;
+                }
+            }
+        }
+        // Every contact moved 100 units; so did their mean.
+        assert_eq!(total, 100);
     }
 
     #[test]

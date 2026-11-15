@@ -1002,7 +1002,10 @@ mod tests {
         let id = m.touchpads().map(|(id, _)| id).next().unwrap();
         pad.borrow_mut().inputs.extend([
             escapepod_core::TouchInput::Fingers(3),
-            escapepod_core::TouchInput::Motion { dx: -98765, dy: 4567 },
+            escapepod_core::TouchInput::Motion {
+                dx: -98765,
+                dy: 4567,
+            },
             escapepod_core::TouchInput::Fingers(0),
         ]);
         let recs = m.ready(id, Instant::from_micros(10), false);

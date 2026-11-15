@@ -205,9 +205,7 @@ const CLICKS: std::ops::RangeInclusive<u16> = 0x110..=0x117;
 impl EvdevTouchpad {
     // Implements: ESC-SRS-113, ESC-SRS-114
     fn open(path: &Path) -> io::Result<Self> {
-        let file = std::fs::File::open(path)?;
-        let dev = Device::from_fd(OwnedFd::from(file))?;
-        dev.set_nonblocking(true)?;
+        let dev = open_read_only(path)?;
         let (mut x, mut y) = (0, 0);
         for (axis, info) in dev.get_absinfo()? {
             if axis == AbsoluteAxisCode::ABS_MT_POSITION_X {
@@ -268,6 +266,16 @@ fn open(path: &Path) -> io::Result<Device> {
     Ok(dev)
 }
 
+/// Opens a pointer or touchpad read-only: `Device::open` asks for write
+/// access first, and neither ever needs it (a grab is an ioctl, and
+/// forwarding goes through the virtual pointer). A touchpad that falls back
+/// to the plain pointer path stays read-only too (ESC-SRS-114).
+fn open_read_only(path: &Path) -> io::Result<Device> {
+    let dev = Device::from_fd(OwnedFd::from(std::fs::File::open(path)?))?;
+    dev.set_nonblocking(true)?;
+    Ok(dev)
+}
+
 impl Opener for EvdevOpener {
     type Keyboard = EvdevKeyboard;
     type Pointer = EvdevPointer;
@@ -281,7 +289,9 @@ impl Opener for EvdevOpener {
     }
 
     fn pointer(&mut self, path: &Path) -> io::Result<EvdevPointer> {
-        Ok(EvdevPointer { dev: open(path)? })
+        Ok(EvdevPointer {
+            dev: open_read_only(path)?,
+        })
     }
 
     fn touchpad(&mut self, path: &Path) -> io::Result<EvdevTouchpad> {
