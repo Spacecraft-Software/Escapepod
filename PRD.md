@@ -14,7 +14,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Escape Pod — PRD
 
-MVP: M0–M7 — Escape Pod v0.1
+MVP: M0–M8 — Escape Pod v0.1
 
 **Maintainer:** Mohamed Hammad — <Mohamed.Hammad@SpacecraftSoftware.org>\
 **Repository:** `Spacecraft-Software/Escapepod` (GitHub) · `/spacecraft-software/escapepod` (local)\
@@ -42,7 +42,7 @@ Every task item below carries the §20.3 identifier of the requirement it discha
 - [Interfaces](#interfaces)
 - [Out of scope](#out-of-scope)
 - [Open items for G2](#open-items-for-g2)
-- [Milestones M0–M7](#m0--foundation-and-compliance)
+- [Milestones M0–M8](#m0--foundation-and-compliance)
 
 
 ## Decisions
@@ -52,7 +52,7 @@ Settled with the maintainer on 2026-10-08.
 | Topic | Decision |
 |-------|----------|
 | Name | **Escape Pod** — binary and crates `escapepod`, `escapepod-core`, `escapepod-evdev`, `escapepod-x11` (all free on crates.io at decision time) |
-| Scope | xcape+: dual-role keys and one-to-one remaps, plus mouse buttons mapped to one fixed key shortcut each (added 2026-11-02, to retire xremap). No layers, macros, or keyboard chords — ever |
+| Scope | xcape+: dual-role keys and one-to-one remaps, plus mouse buttons mapped to one fixed key shortcut each (added 2026-11-02, to retire xremap) and touchpad swipes mapped to one fixed key shortcut each (added 2026-11-15). No layers, macros, or keyboard chords — ever |
 | Tap model | Pass-through only: the hold key goes down at once; the tap key is added on a lone, quick release. No buffering, no added latency |
 | Platforms | Linux. evdev + uinput primary; X11 (XRecord + XTest) fallback |
 | X11 scope | Backend auto-selected (evdev when device access exists, X11 otherwise; flag overrides). Dual-role only on X11; remaps rejected with a `setxkbmap` hint |
@@ -66,6 +66,7 @@ Settled with the maintainer on 2026-10-08.
 | Config | TOML file (per-device rules, tap timeout, reload on `SIGHUP`) plus xcape-compatible `--map 'Control_L=Escape'` |
 | Agentic CLI | `spacecraft-agentic-cli` applies in full. No MCP surface (7 commands, below the 10-command threshold) |
 | Mouse buttons (2026-11-02) | A `[[button]]` rule maps one pointer button to a shortcut of at most eight keys (press in order, release in reverse). Only pointers a rule matches are grabbed; their other events pass through a second virtual device, the virtual pointer. Unmatched pointers stay read-only. evdev backend only: X11 refuses button rules |
+| Touchpad gestures (2026-11-15) | A `[[gesture]]` rule maps a three- or four-finger swipe in one direction (left, right, up, down) to a shortcut of at most eight keys, sent once when the fingers lift (press in order, release in reverse). The swipe is recognised in `escapepod-core` from the kernel's multi-touch events: the finger count from `BTN_TOOL_TRIPLETAP` / `BTN_TOOL_QUADTAP`, motion in millimetres through the touchpad's own resolution; a threshold of 5–100 mm, default 20. Touchpads are read without grab and opened read-only. No libinput: it would bring back C libraries the G2 design removed. evdev backend only: X11 refuses gesture rules |
 | Test safety (2026-11-02) | Device tests run in the NixOS VM by default; on the host only with `ESCAPEPOD_HW_ON_HOST=1`. `--only-device VVVV:PPPP` makes the daemon refuse to grab anything else |
 
 
@@ -73,7 +74,8 @@ Settled with the maintainer on 2026-10-08.
 
 ```text
  physical keyboard(s) ──grab──┐                       ┌──▶ virtual keyboard (uinput) ──▶ X11 / Wayland / console
- pointer device(s) ──read─────┼──▶ escapepod-evdev ──▶ escapepod-core (step) ──┘
+ pointer device(s) ──read─────┤
+ touchpad(s) ──read (no grab)─┼──▶ escapepod-evdev ──▶ escapepod-core (step) ──┘
  udev hotplug, signals ───────┘         │
                                         └──▶ status socket (/run/escapepod/escapepod.sock, redacted)
 
@@ -82,8 +84,8 @@ Settled with the maintainer on 2026-10-08.
 
 | Crate | Role | Rules |
 |-------|------|-------|
-| `escapepod-core` | Pure state machine: `step(event, timestamp) → output events`. No I/O, no clock, no threads | `#![forbid(unsafe_code)]`; carries the bulk of the test, property, and mutation evidence |
-| `escapepod-evdev` | Device discovery, exclusive grab, virtual keyboard and pointer, hotplug, pointer observation and mapped-button pass-through | The only crate touching `/dev/input` and `/dev/uinput` |
+| `escapepod-core` | Pure state machine: `step(event, timestamp) → output events`, swipe recognition included. No I/O, no clock, no threads | `#![forbid(unsafe_code)]`; carries the bulk of the test, property, and mutation evidence |
+| `escapepod-evdev` | Device discovery, exclusive grab, virtual keyboard and pointer, hotplug, pointer observation and mapped-button pass-through, read-only touchpad observation | The only crate touching `/dev/input` and `/dev/uinput` |
 | `escapepod-x11` | XRecord observation and XTest injection through `x11rb` (pure Rust, no libX11) | Dual-role only; never remaps |
 | `escapepod` | CLI (clap), config (serde + toml), event loop, signals, status socket, diagnostics | Built to `spacecraft-cli-standard` + `spacecraft-agentic-cli` |
 
@@ -272,7 +274,6 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [x] ESC-SRS-053 Unmatched pointers read without grab (amended 2026-11-02)
 - [x] ESC-SRS-105 Button press sends the shortcut's keys in order
 - [x] ESC-SRS-106 Button release lifts them in reverse order
-- [x] ESC-SRS-107 Pointers a button rule matches are grabbed
 - [x] ESC-SRS-108 Unmapped pointer events pass through in order
 - [x] ESC-SRS-109 Virtual pointer before any grab
 - [x] ESC-SRS-110 X11 refuses button rules
@@ -280,7 +281,28 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [x] ESC-SRS-112 Shortcut length bounded
 
 
-## M7 — Verification and release gate
+## M7 — Touchpad gestures
+
+- [ ] ESC-SRS-107 Pointers a button rule matches are grabbed, touchpads never (amended 2026-11-15)
+- [ ] ESC-SRS-113 Touchpads never grabbed
+- [ ] ESC-SRS-114 Touchpads opened read-only
+- [ ] ESC-SRS-115 Swipes recognised from the kernel's multi-touch events
+- [ ] ESC-SRS-116 A swipe ends when its finger count falls, with one direction
+- [ ] ESC-SRS-117 A swipe shorter than the threshold sends nothing
+- [ ] ESC-SRS-118 A rising finger count cancels the swipe
+- [ ] ESC-SRS-119 Swipe sends the shortcut's keys in order
+- [ ] ESC-SRS-120 Then lifts them in reverse order
+- [ ] ESC-SRS-121 At most one shortcut per swipe
+- [ ] ESC-SRS-122 Finger count is three or four
+- [ ] ESC-SRS-123 Gesture shortcut length bounded
+- [ ] ESC-SRS-124 X11 refuses gesture rules
+- [ ] ESC-SRS-125 A swipe marks held dual-role keys used
+- [ ] ESC-SRS-126 Swipes reported without position or motion
+- [ ] ESC-SRS-127 Threshold in millimetres, 5 to 100
+- [ ] ESC-SRS-128 Default threshold 20 mm
+
+
+## M8 — Verification and release gate
 
 - [ ] ESC-SRS-079 Added latency within budget
 - [ ] ESC-SRS-080 Resident memory within budget

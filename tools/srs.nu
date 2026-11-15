@@ -17,7 +17,8 @@ const MILESTONES = {
     M4: "X11 fallback backend"
     M5: "Privileges, packaging and manual"
     M6: "Mouse buttons and test safety"
-    M7: "Verification and release gate"
+    M7: "Touchpad gestures"
+    M8: "Verification and release gate"
 }
 
 # Escapes the three Texinfo-active characters, then renders `code` spans
