@@ -676,11 +676,11 @@ The daemon shall grab exclusively every pointer device other than a touchpad tha
 
 Rationale: Without the grab both the button and its shortcut reach applications.  Source: ESC-NEED-009.  Method: test.  Priority: mandatory.  Status: baselined.
 
-@item ESC-SRS-113 @emph{Touchpads read without grab}
+@item ESC-SRS-113 @emph{Touchpads never grabbed}
 @anchor{ESC-SRS-113}
-The daemon shall read every touchpad that a gesture rule matches without grabbing it.
+The daemon shall never grab a touchpad, whether or not a rule matches it.
 
-Rationale: The touchpad must go on moving the pointer and scrolling; a swipe is observed, never taken away.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+Rationale: The touchpad must go on moving the pointer and scrolling; a swipe is observed, never taken away, and a grab would also lose its multi-touch motion, which the virtual pointer cannot carry.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
 
 @item ESC-SRS-114 @emph{Touchpads opened read-only}
 @anchor{ESC-SRS-114}
@@ -714,7 +714,7 @@ Rationale: A fourth finger landing midway turns the gesture into another one; th
 
 @item ESC-SRS-119 @emph{Swipe shortcut press}
 @anchor{ESC-SRS-119}
-When a swipe that a gesture rule matches ends, the daemon shall emit on the virtual keyboard a press of each key of the rule, in the order the rule lists them.
+When a swipe ends that matches a gesture rule's finger count and direction and reaches the rule's threshold, the daemon shall emit on the virtual keyboard a press of each key of the rule, in the order the rule lists them.
 
 Rationale: A swipe sends a desktop shortcut, such as Super+Control+Right, as a side button does.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
 
@@ -750,7 +750,7 @@ Rationale: The X11 backend has no device access, so it cannot read a touchpad.  
 
 @item ESC-SRS-125 @emph{Swipe marks dual-role keys used}
 @anchor{ESC-SRS-125}
-When a swipe that a gesture rule matches ends while a dual-role key is held, the engine shall not emit the tap key for that key's release.
+When a swipe ends while a dual-role key is held, and the swipe matches a gesture rule's finger count and direction and reaches the rule's threshold, the engine shall not emit the tap key for that key's release.
 
 Rationale: The swipe's shortcut is a use of the held key, as a pointer button is (ESC-SRS-012).  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
 
@@ -765,6 +765,12 @@ Rationale: Touchpad motion is input data; like unmanaged keys it stays inside th
 When a gesture rule names a threshold outside 5 to 100 millimetres, the CLI shall exit with code 2.
 
 Rationale: Millimetres, measured with the touchpad's own resolution, mean the same swipe on every touchpad; the bounds keep a rule from firing on a twitch or never firing at all.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
+
+@item ESC-SRS-128 @emph{Default gesture threshold}
+@anchor{ESC-SRS-128}
+When a gesture rule names no threshold, the daemon shall use a threshold of 20 millimetres for it.
+
+Rationale: A rule works without tuning; 20 mm is a deliberate swipe on a laptop touchpad, well clear of a resting hand.  Source: ESC-NEED-010.  Method: test.  Priority: mandatory.  Status: baselined.
 
 @end table
 

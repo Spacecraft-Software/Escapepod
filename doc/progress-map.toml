@@ -236,7 +236,7 @@ requirements = ["ESC-SRS-107", "ESC-SRS-113", "ESC-SRS-114"]
 
 [[plan]]
 id = "P-054"
-requirements = ["ESC-SRS-122", "ESC-SRS-123", "ESC-SRS-124", "ESC-SRS-126", "ESC-SRS-127"]
+requirements = ["ESC-SRS-122", "ESC-SRS-123", "ESC-SRS-124", "ESC-SRS-126", "ESC-SRS-127", "ESC-SRS-128"]
 
 [[plan]]
 id = "P-055"

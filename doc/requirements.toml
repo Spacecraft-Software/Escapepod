@@ -18,7 +18,7 @@
 #
 # Baseline: G1, 2026-11-01; ESC-SRS-103 and 104 added at G2, 2026-11-01;
 # ESC-SRS-105 to 112 added and 053 amended at a G1 re-entry, 2026-11-02;
-# ESC-SRS-113 to 127 added and 107 amended at a G1 re-entry, 2026-11-15
+# ESC-SRS-113 to 128 added and 107 amended at a G1 re-entry, 2026-11-15
 # (COMPLIANCE.md, "Gate records").
 
 [[requirement]]
@@ -1263,14 +1263,14 @@ rationale = "A shortcut is a few modifiers and one key; a longer list is a macro
 
 [[requirement]]
 id = "ESC-SRS-113"
-title = "Touchpads read without grab"
+title = "Touchpads never grabbed"
 milestone = "M7"
 priority = "mandatory"
 method = "test"
 status = "baselined"
 source = "ESC-NEED-010"
-statement = "The daemon shall read every touchpad that a gesture rule matches without grabbing it."
-rationale = "The touchpad must go on moving the pointer and scrolling; a swipe is observed, never taken away."
+statement = "The daemon shall never grab a touchpad, whether or not a rule matches it."
+rationale = "The touchpad must go on moving the pointer and scrolling; a swipe is observed, never taken away, and a grab would also lose its multi-touch motion, which the virtual pointer cannot carry."
 
 [[requirement]]
 id = "ESC-SRS-114"
@@ -1335,7 +1335,7 @@ priority = "mandatory"
 method = "test"
 status = "baselined"
 source = "ESC-NEED-010"
-statement = "When a swipe that a gesture rule matches ends, the daemon shall emit on the virtual keyboard a press of each key of the rule, in the order the rule lists them."
+statement = "When a swipe ends that matches a gesture rule's finger count and direction and reaches the rule's threshold, the daemon shall emit on the virtual keyboard a press of each key of the rule, in the order the rule lists them."
 rationale = "A swipe sends a desktop shortcut, such as Super+Control+Right, as a side button does."
 
 [[requirement]]
@@ -1401,7 +1401,7 @@ priority = "mandatory"
 method = "test"
 status = "baselined"
 source = "ESC-NEED-010"
-statement = "When a swipe that a gesture rule matches ends while a dual-role key is held, the engine shall not emit the tap key for that key's release."
+statement = "When a swipe ends while a dual-role key is held, and the swipe matches a gesture rule's finger count and direction and reaches the rule's threshold, the engine shall not emit the tap key for that key's release."
 rationale = "The swipe's shortcut is a use of the held key, as a pointer button is (ESC-SRS-012)."
 
 [[requirement]]
@@ -1425,3 +1425,14 @@ status = "baselined"
 source = "ESC-NEED-010"
 statement = "When a gesture rule names a threshold outside 5 to 100 millimetres, the CLI shall exit with code 2."
 rationale = "Millimetres, measured with the touchpad's own resolution, mean the same swipe on every touchpad; the bounds keep a rule from firing on a twitch or never firing at all."
+
+[[requirement]]
+id = "ESC-SRS-128"
+title = "Default gesture threshold"
+milestone = "M7"
+priority = "mandatory"
+method = "test"
+status = "baselined"
+source = "ESC-NEED-010"
+statement = "When a gesture rule names no threshold, the daemon shall use a threshold of 20 millimetres for it."
+rationale = "A rule works without tuning; 20 mm is a deliberate swipe on a laptop touchpad, well clear of a resting hand."

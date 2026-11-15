@@ -223,7 +223,7 @@ when that test passes. Identifiers are permanent.
 
 ## M7 — Touchpad gestures
 
-- [ ] T-122 P-051 ESC-SRS-113–127 and ESC-NEED-010 in `doc/requirements.toml` and the manual,
+- [ ] T-122 P-051 ESC-SRS-113–128 and ESC-NEED-010 in `doc/requirements.toml` and the manual,
       ESC-SRS-107 amended, release gate renumbered M8; G1 re-entry record
 - [ ] T-123 P-052 Touchpad event model in `escapepod-core`: finger-count keys, slot positions,
       resolution; swipe begin, accumulate, end, cancel (`ESC-SRS-115, 116, 118`)
@@ -236,8 +236,8 @@ when that test passes. Identifiers are permanent.
       included; resolution from the axis info, a touchpad without one refused with a warning
       (`ESC-SRS-107, 113, 114`)
 - [ ] T-127 P-053 Touchpad removal, hotplug and reload on the pointer paths
-- [ ] T-128 P-054 `[[gesture]]` config, global and per device, with limits (`ESC-SRS-122, 123,
-      127`); `config check`, `--dry-run`, `device list`, `schema`, ICD,
+- [ ] T-128 P-054 `[[gesture]]` config, global and per device, with limits and the 20 mm
+      default (`ESC-SRS-122, 123, 127, 128`); `config check`, `--dry-run`, `device list`, `schema`, ICD,
       `schemas/config.schema.json`
 - [ ] T-129 P-054 X11 backend refuses gesture rules (`ESC-SRS-124`)
 - [ ] T-130 P-054 Swipes in logs, the status socket and `event monitor` by finger count,

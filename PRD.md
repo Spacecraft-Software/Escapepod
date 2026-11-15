@@ -284,7 +284,7 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 ## M7 — Touchpad gestures
 
 - [ ] ESC-SRS-107 Pointers a button rule matches are grabbed, touchpads never (amended 2026-11-15)
-- [ ] ESC-SRS-113 Touchpads a gesture rule matches are read without grab
+- [ ] ESC-SRS-113 Touchpads never grabbed
 - [ ] ESC-SRS-114 Touchpads opened read-only
 - [ ] ESC-SRS-115 Swipes recognised from the kernel's multi-touch events
 - [ ] ESC-SRS-116 A swipe ends when its finger count falls, with one direction
@@ -299,6 +299,7 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 - [ ] ESC-SRS-125 A swipe marks held dual-role keys used
 - [ ] ESC-SRS-126 Swipes reported without position or motion
 - [ ] ESC-SRS-127 Threshold in millimetres, 5 to 100
+- [ ] ESC-SRS-128 Default threshold 20 mm
 
 
 ## M8 — Verification and release gate

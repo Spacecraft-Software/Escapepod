@@ -200,7 +200,7 @@ desktop shortcut, so the maintainer's X11 sessions can drop Touchégg and a COSM
 its three-finger compositor patch. Recognition is pure Rust in the engine, not libinput, which
 would bring back C libraries the G2 design removed.
 
-- [ ] P-051 G1 re-entry: ESC-SRS-113 to 127 and ESC-NEED-010 added, ESC-SRS-107 amended (and
+- [ ] P-051 G1 re-entry: ESC-SRS-113 to 128 and ESC-NEED-010 added, ESC-SRS-107 amended (and
       moved to M7), the release gate renumbered M8; characteristics gate run on the changed rows;
       gate record in `COMPLIANCE.md`
 - [ ] P-052 Core swipe recogniser: touchpad events in (finger-count keys, slot positions in
@@ -217,7 +217,7 @@ would bring back C libraries the G2 design removed.
       direction, keys, threshold); `config check`, `--dry-run`, `device list` and `schema` show
       gesture rules and observed touchpads; ICD and config schema; the X11 backend refuses
       gesture rules; swipes reported by finger count, direction and decision only —
-      ESC-SRS-122, 123, 124, 126, 127
+      ESC-SRS-122, 123, 124, 126, 127, 128
 - [ ] P-055 Evidence: recorded multi-touch traces replayed through the engine; a property test
       that output stays balanced with swipes interleaved; the VM test gains a uinput
       multi-touch touchpad fixture (three-finger left swipe → Super+Control+Right, pointer
