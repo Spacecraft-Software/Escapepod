@@ -200,7 +200,7 @@ desktop shortcut, so the maintainer's X11 sessions can drop Touchégg and a COSM
 its three-finger compositor patch. Recognition is pure Rust in the engine, not libinput, which
 would bring back C libraries the G2 design removed.
 
-- [ ] P-051 G1 re-entry: ESC-SRS-113 to 128 and ESC-NEED-010 added, ESC-SRS-107 amended (and
+- [x] P-051 G1 re-entry: ESC-SRS-113 to 128 and ESC-NEED-010 added, ESC-SRS-107 amended (and
       moved to M7), the release gate renumbered M8; characteristics gate run on the changed rows;
       gate record in `COMPLIANCE.md`
 - [ ] P-052 Core swipe recogniser: touchpad events in (finger-count keys, slot positions in

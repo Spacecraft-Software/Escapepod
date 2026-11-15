@@ -223,7 +223,7 @@ when that test passes. Identifiers are permanent.
 
 ## M7 — Touchpad gestures
 
-- [ ] T-122 P-051 ESC-SRS-113–128 and ESC-NEED-010 in `doc/requirements.toml` and the manual,
+- [x] T-122 P-051 ESC-SRS-113–128 and ESC-NEED-010 in `doc/requirements.toml` and the manual,
       ESC-SRS-107 amended, release gate renumbered M8; G1 re-entry record
 - [ ] T-123 P-052 Touchpad event model in `escapepod-core`: finger-count keys, slot positions,
       resolution; swipe begin, accumulate, end, cancel (`ESC-SRS-115, 116, 118`)

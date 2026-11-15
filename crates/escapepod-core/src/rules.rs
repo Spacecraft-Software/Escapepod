@@ -7,13 +7,40 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::time::Duration;
 
-use crate::KeyCode;
+use crate::{Direction, KeyCode};
 
 /// The tap timeout used when the configuration sets none (ESC-SRS-019).
 ///
 /// 200 ms covers a deliberate tap and excludes an abandoned hold. This is
 /// also xcape's default.
 pub const DEFAULT_TAP_TIMEOUT: Duration = Duration::from_millis(200);
+
+/// The swipe threshold used when a gesture rule names none (ESC-SRS-128).
+pub const DEFAULT_GESTURE_THRESHOLD_MM: u8 = 20;
+
+/// The shortest swipe threshold a gesture rule may name (ESC-SRS-127).
+pub const MIN_GESTURE_THRESHOLD_MM: u8 = 5;
+
+/// The longest swipe threshold a gesture rule may name (ESC-SRS-127).
+pub const MAX_GESTURE_THRESHOLD_MM: u8 = 100;
+
+/// One gesture rule: the shortcut a swipe sends, and how far it must travel.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GestureRule {
+    /// The shortcut, pressed in this order and released in reverse.
+    pub keys: Vec<KeyCode>,
+    /// The travel a swipe needs along its direction, in millimetres.
+    pub threshold_mm: u8,
+}
+
+impl GestureRule {
+    /// Whether a swipe that travelled `travel_um` micrometres reaches the
+    /// threshold.
+    #[must_use]
+    pub fn reached_by(&self, travel_um: u64) -> bool {
+        travel_um >= u64::from(self.threshold_mm) * 1000
+    }
+}
 
 /// One dual-role key: tapped it sends `tap`, held it acts as `hold`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -52,6 +79,7 @@ pub struct Rules {
     dual: BTreeMap<KeyCode, DualRole>,
     remap: BTreeMap<KeyCode, KeyCode>,
     buttons: BTreeMap<KeyCode, Vec<KeyCode>>,
+    gestures: BTreeMap<(u8, Direction), GestureRule>,
     protected: BTreeSet<KeyCode>,
     tap_timeout: Duration,
 }
@@ -126,6 +154,19 @@ impl Rules {
             .map(|(&button, keys)| (button, keys.as_slice()))
     }
 
+    /// The rule for a swipe of `fingers` fingers in `direction`, if any.
+    #[must_use]
+    pub fn gesture(&self, fingers: u8, direction: Direction) -> Option<&GestureRule> {
+        self.gestures.get(&(fingers, direction))
+    }
+
+    /// Gesture rules in finger-count, then direction order.
+    pub fn gestures(&self) -> impl Iterator<Item = (u8, Direction, &GestureRule)> + '_ {
+        self.gestures
+            .iter()
+            .map(|(&(fingers, direction), rule)| (fingers, direction, rule))
+    }
+
     /// The protected keys, in key-code order.
     pub fn protected(&self) -> impl Iterator<Item = KeyCode> + '_ {
         self.protected.iter().copied()
@@ -147,6 +188,7 @@ impl Default for Rules {
             dual: BTreeMap::new(),
             remap: BTreeMap::new(),
             buttons: BTreeMap::new(),
+            gestures: BTreeMap::new(),
             protected: BTreeSet::new(),
             tap_timeout: DEFAULT_TAP_TIMEOUT,
         }
@@ -159,11 +201,26 @@ pub struct RulesBuilder {
     dual: Vec<DualRole>,
     remap: Vec<(KeyCode, KeyCode)>,
     buttons: Vec<(KeyCode, Vec<KeyCode>)>,
+    gestures: Vec<(u8, Direction, Vec<KeyCode>, Option<u8>)>,
     protected: BTreeSet<KeyCode>,
     tap_timeout: Option<Duration>,
 }
 
 impl RulesBuilder {
+    /// Maps a swipe of `fingers` fingers in `direction` to an ordered key
+    /// shortcut, with a threshold in millimetres (the default when `None`).
+    #[must_use]
+    pub fn gesture(
+        mut self,
+        fingers: u8,
+        direction: Direction,
+        keys: Vec<KeyCode>,
+        threshold_mm: Option<u8>,
+    ) -> Self {
+        self.gestures.push((fingers, direction, keys, threshold_mm));
+        self
+    }
+
     /// Maps a pointer button to an ordered key shortcut.
     #[must_use]
     pub fn button(mut self, button: KeyCode, keys: Vec<KeyCode>) -> Self {
@@ -204,8 +261,11 @@ impl RulesBuilder {
     ///
     /// Returns a [`RulesError`] when one physical key is given two roles
     /// (two dual-role entries, two remaps, or a dual-role entry and a
-    /// remap), when the tap timeout is zero, or when a button is repeated
-    /// or its shortcut has fewer than one, more than eight, or repeated keys.
+    /// remap), when the tap timeout is zero, when a button is repeated or
+    /// its shortcut has fewer than one, more than eight, or repeated keys,
+    /// or when a gesture rule names a finger count other than three or four,
+    /// a threshold outside 5 to 100 mm, such a shortcut, or the same finger
+    /// count and direction as another.
     pub fn build(self) -> Result<Rules, RulesError> {
         let tap_timeout = self.tap_timeout.unwrap_or(DEFAULT_TAP_TIMEOUT);
         if tap_timeout.is_zero() {
@@ -235,10 +295,36 @@ impl RulesBuilder {
                 return Err(RulesError::new(ErrorKind::DuplicateButton(button)));
             }
         }
+        // Implements: ESC-SRS-122, ESC-SRS-123, ESC-SRS-127, ESC-SRS-128
+        let mut gestures = BTreeMap::new();
+        for (fingers, direction, keys, threshold) in self.gestures {
+            if fingers != 3 && fingers != 4 {
+                return Err(RulesError::new(ErrorKind::GestureFingers(fingers)));
+            }
+            let threshold_mm = threshold.unwrap_or(DEFAULT_GESTURE_THRESHOLD_MM);
+            if !(MIN_GESTURE_THRESHOLD_MM..=MAX_GESTURE_THRESHOLD_MM).contains(&threshold_mm) {
+                return Err(RulesError::new(ErrorKind::GestureThreshold(threshold_mm)));
+            }
+            if keys.is_empty()
+                || keys.len() > 8
+                || keys.iter().collect::<BTreeSet<_>>().len() != keys.len()
+            {
+                return Err(RulesError::new(ErrorKind::GestureShortcut(
+                    fingers, direction,
+                )));
+            }
+            let rule = GestureRule { keys, threshold_mm };
+            if gestures.insert((fingers, direction), rule).is_some() {
+                return Err(RulesError::new(ErrorKind::DuplicateGesture(
+                    fingers, direction,
+                )));
+            }
+        }
         Ok(Rules {
             dual,
             remap,
             buttons,
+            gestures,
             protected: self.protected,
             tap_timeout,
         })
@@ -251,6 +337,10 @@ enum ErrorKind {
     ZeroTimeout,
     InvalidShortcut(KeyCode),
     DuplicateButton(KeyCode),
+    GestureFingers(u8),
+    GestureThreshold(u8),
+    GestureShortcut(u8, Direction),
+    DuplicateGesture(u8, Direction),
 }
 
 /// The rules given to [`RulesBuilder::build`] are not valid.
@@ -271,7 +361,11 @@ impl RulesError {
             ErrorKind::TwoRoles(k) => Some(k),
             ErrorKind::ZeroTimeout
             | ErrorKind::InvalidShortcut(_)
-            | ErrorKind::DuplicateButton(_) => None,
+            | ErrorKind::DuplicateButton(_)
+            | ErrorKind::GestureFingers(_)
+            | ErrorKind::GestureThreshold(_)
+            | ErrorKind::GestureShortcut(..)
+            | ErrorKind::DuplicateGesture(..) => None,
         }
     }
 
@@ -291,6 +385,22 @@ impl fmt::Display for RulesError {
                 write!(f, "button {k} needs one to eight distinct shortcut keys")
             }
             ErrorKind::DuplicateButton(k) => write!(f, "button {k} is mapped more than once"),
+            ErrorKind::GestureFingers(n) => {
+                write!(f, "a gesture names {n} fingers; swipes use three or four")
+            }
+            ErrorKind::GestureThreshold(mm) => write!(
+                f,
+                "a gesture threshold of {mm} mm is outside {MIN_GESTURE_THRESHOLD_MM} to {MAX_GESTURE_THRESHOLD_MM} mm"
+            ),
+            ErrorKind::GestureShortcut(n, d) => {
+                write!(
+                    f,
+                    "the {n}-finger {d} swipe needs one to eight distinct shortcut keys"
+                )
+            }
+            ErrorKind::DuplicateGesture(n, d) => {
+                write!(f, "the {n}-finger {d} swipe is mapped more than once")
+            }
         }
     }
 }
@@ -351,6 +461,74 @@ mod tests {
         assert_eq!(rules.role(key("KEY_TAB")), Role::Protected);
         assert!(!rules.is_managed(caps));
         assert_eq!(rules.shadowed().count(), 2);
+    }
+
+    fn swipe(fingers: u8, keys: Vec<KeyCode>, threshold: Option<u8>) -> Result<Rules, RulesError> {
+        Rules::builder()
+            .gesture(fingers, Direction::Left, keys, threshold)
+            .build()
+    }
+
+    fn chord() -> Vec<KeyCode> {
+        vec![key("KEY_LEFTMETA"), KeyCode::LEFTCTRL, key("KEY_RIGHT")]
+    }
+
+    // Verifies: ESC-SRS-122
+    #[test]
+    fn gestures_take_three_or_four_fingers() {
+        swipe(3, chord(), None).unwrap();
+        swipe(4, chord(), None).unwrap();
+        for n in [0, 1, 2, 5] {
+            let err = swipe(n, chord(), None).unwrap_err();
+            assert!(err.to_string().contains("three or four"), "{err}");
+        }
+    }
+
+    // Verifies: ESC-SRS-123
+    #[test]
+    fn gesture_shortcuts_need_one_to_eight_distinct_keys() {
+        swipe(3, vec![], None).unwrap_err();
+        let nine: Vec<KeyCode> = (1..=9u16)
+            .filter_map(|n| KeyCode::from_name(&format!("KEY_F{n}")))
+            .collect();
+        assert_eq!(nine.len(), 9);
+        swipe(3, nine, None).unwrap_err();
+        swipe(3, vec![KeyCode::ESC, KeyCode::ESC], None).unwrap_err();
+        swipe(3, vec![KeyCode::ESC], None).unwrap();
+    }
+
+    // Verifies: ESC-SRS-127, ESC-SRS-128
+    #[test]
+    fn gesture_thresholds_are_5_to_100_mm_with_a_20_mm_default() {
+        let rules = swipe(3, chord(), None).unwrap_or_default();
+        assert_eq!(
+            rules.gesture(3, Direction::Left).map(|g| g.threshold_mm),
+            Some(DEFAULT_GESTURE_THRESHOLD_MM)
+        );
+        assert_eq!(DEFAULT_GESTURE_THRESHOLD_MM, 20);
+        for mm in [5, 100] {
+            swipe(3, chord(), Some(mm)).unwrap();
+        }
+        for mm in [0, 4, 101, 255] {
+            let err = swipe(3, chord(), Some(mm)).unwrap_err();
+            assert!(err.to_string().contains("5 to 100 mm"), "{err}");
+        }
+    }
+
+    #[test]
+    fn a_swipe_is_mapped_once_and_reaches_its_threshold_in_micrometres() {
+        let dup = Rules::builder()
+            .gesture(3, Direction::Left, chord(), None)
+            .gesture(3, Direction::Left, vec![KeyCode::ESC], None)
+            .build()
+            .unwrap_err();
+        assert!(dup.to_string().contains("more than once"));
+        let rules = swipe(4, chord(), Some(30)).unwrap_or_default();
+        let rule = rules.gesture(4, Direction::Left);
+        assert_eq!(rule.map(|g| g.reached_by(29_999)), Some(false));
+        assert_eq!(rule.map(|g| g.reached_by(30_000)), Some(true));
+        assert!(rules.gesture(4, Direction::Right).is_none());
+        assert_eq!(rules.gestures().count(), 1);
     }
 }
 

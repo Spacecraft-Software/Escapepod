@@ -37,6 +37,7 @@
 mod chord;
 mod engine;
 mod event;
+mod gesture;
 mod key;
 mod keytable;
 mod rules;
@@ -49,10 +50,17 @@ pub use engine::{Decision, Engine};
 #[doc(inline)]
 pub use event::{Input, Instant, KeyEvent, KeyValue};
 #[doc(inline)]
+pub use gesture::{
+    Direction, Resolution, SETTLE_UM, Swipe, SwipeEvent, SwipeRecognizer, TouchInput,
+};
+#[doc(inline)]
 pub use key::KeyCode;
 #[doc(inline)]
-pub use rules::{DEFAULT_TAP_TIMEOUT, DualRole, Role, Rules, RulesBuilder, RulesError};
+pub use rules::{
+    DEFAULT_GESTURE_THRESHOLD_MM, DEFAULT_TAP_TIMEOUT, DualRole, GestureRule,
+    MAX_GESTURE_THRESHOLD_MM, MIN_GESTURE_THRESHOLD_MM, Role, Rules, RulesBuilder, RulesError,
+};
 #[doc(inline)]
-pub use session::{DeviceId, HeldKeys, Session, Step};
+pub use session::{DeviceId, HeldKeys, Session, Step, SwipeDecision};
 
 // Rust guideline compliant 2026-05-18

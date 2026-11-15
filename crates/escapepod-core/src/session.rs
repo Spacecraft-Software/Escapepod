@@ -6,7 +6,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{Chord, Decision, Engine, Input, Instant, KeyCode, KeyEvent, KeyValue, Rules};
+use crate::{
+    Chord, Decision, Direction, Engine, Input, Instant, KeyCode, KeyEvent, KeyValue, Resolution,
+    Rules, SwipeEvent, SwipeRecognizer, TouchInput,
+};
 
 /// Identifies one grabbed device within a [`Session`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -16,6 +19,47 @@ pub struct DeviceId(pub u32);
 enum Holder {
     Keyboard(DeviceId),
     Button(DeviceId, KeyCode),
+    Gesture(DeviceId),
+}
+
+/// What became of a finished or cancelled swipe, for logs, the status
+/// socket and `event monitor`. It names the finger count and direction
+/// only: no position or motion value ever leaves the session (ESC-SRS-126).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SwipeDecision {
+    /// A rule matched and its shortcut was sent.
+    Sent {
+        /// Three or four.
+        fingers: u8,
+        /// The swipe's direction.
+        direction: Direction,
+    },
+    /// A rule matched the finger count and direction, but the swipe was
+    /// shorter than its threshold; nothing was sent.
+    BelowThreshold {
+        /// Three or four.
+        fingers: u8,
+        /// The swipe's direction.
+        direction: Direction,
+    },
+    /// No rule names this finger count and direction; nothing was sent.
+    Unmapped {
+        /// Three or four.
+        fingers: u8,
+        /// The swipe's direction.
+        direction: Direction,
+    },
+    /// Another finger landed mid-swipe; nothing was sent.
+    Cancelled {
+        /// The finger count the swipe had.
+        fingers: u8,
+    },
+}
+
+#[derive(Clone, Debug)]
+struct Touchpad {
+    recognizer: SwipeRecognizer,
+    rules: Rules,
 }
 
 /// Every key held down on the virtual keyboard, and the devices holding
@@ -144,6 +188,7 @@ pub struct Session {
     engines: BTreeMap<DeviceId, Engine>,
     pointers: BTreeMap<DeviceId, Rules>,
     buttons_down: BTreeSet<(DeviceId, KeyCode)>,
+    touchpads: BTreeMap<DeviceId, Touchpad>,
     chord: Chord,
     ledger: HeldKeys,
     scratch: Vec<KeyEvent>,
@@ -157,6 +202,7 @@ impl Session {
             engines: BTreeMap::new(),
             pointers: BTreeMap::new(),
             buttons_down: BTreeSet::new(),
+            touchpads: BTreeMap::new(),
             chord,
             ledger: HeldKeys::default(),
             scratch: Vec::new(),
@@ -284,6 +330,70 @@ impl Session {
         true
     }
 
+    /// Registers a touchpad, read without grab, with its gesture rules and
+    /// resolution. A touchpad already present gets the new rules and a fresh
+    /// recogniser, dropping any swipe in progress.
+    pub fn add_touchpad(&mut self, dev: DeviceId, rules: Rules, resolution: Resolution) {
+        self.touchpads.insert(
+            dev,
+            Touchpad {
+                recognizer: SwipeRecognizer::new(resolution),
+                rules,
+            },
+        );
+    }
+
+    /// Whether `dev` is a touchpad in the session.
+    #[must_use]
+    pub fn has_touchpad(&self, dev: DeviceId) -> bool {
+        self.touchpads.contains_key(&dev)
+    }
+
+    /// Consumes one touchpad event from `dev` at `now`. When it finishes a
+    /// swipe that matches a gesture rule and reaches the rule's threshold,
+    /// appends the shortcut: each key pressed in order, then each released
+    /// in reverse. Returns what became of a finished or cancelled swipe.
+    // Implements: ESC-SRS-119, ESC-SRS-120, ESC-SRS-121, ESC-SRS-125, ESC-SRS-126
+    pub fn on_touch(
+        &mut self,
+        dev: DeviceId,
+        input: TouchInput,
+        now: Instant,
+        out: &mut Vec<KeyEvent>,
+    ) -> Option<SwipeDecision> {
+        let pad = self.touchpads.get_mut(&dev)?;
+        let swipe = match pad.recognizer.step(input) {
+            SwipeEvent::None => return None,
+            SwipeEvent::Cancelled(fingers) => return Some(SwipeDecision::Cancelled { fingers }),
+            SwipeEvent::Ended(swipe) => swipe,
+        };
+        let (fingers, direction) = (swipe.fingers, swipe.direction);
+        let Some(rule) = pad.rules.gesture(fingers, direction) else {
+            return Some(SwipeDecision::Unmapped { fingers, direction });
+        };
+        if !rule.reached_by(swipe.travel_um) {
+            return Some(SwipeDecision::BelowThreshold { fingers, direction });
+        }
+        let keys = rule.keys.clone();
+        // The shortcut is a use of any dual-role key held now, as a pointer
+        // button is: its release sends no tap (ESC-SRS-012, 125).
+        self.on_pointer_press(now);
+        let holder = Holder::Gesture(dev);
+        for &key in &keys {
+            let event = KeyEvent::press(key);
+            if self.ledger.apply_holder(holder, event) {
+                out.push(event);
+            }
+        }
+        for &key in keys.iter().rev() {
+            let event = KeyEvent::release(key);
+            if self.ledger.apply_holder(holder, event) {
+                out.push(event);
+            }
+        }
+        Some(SwipeDecision::Sent { fingers, direction })
+    }
+
     /// Removes `dev`, appending the releases of every key it held.
     pub fn remove_device(&mut self, dev: DeviceId, out: &mut Vec<KeyEvent>) {
         self.engines.remove(&dev);
@@ -297,6 +407,7 @@ impl Session {
             self.on_button(dev, KeyEvent::release(button), Instant::default(), out);
         }
         self.pointers.remove(&dev);
+        self.touchpads.remove(&dev);
         self.ledger.release_device(dev, out);
         self.chord.clear();
     }
@@ -565,6 +676,146 @@ mod tests {
         let mut out = Vec::new();
         h.release_all(&mut out);
         assert_eq!(out, [KeyEvent::release(CTRL)]);
+    }
+
+    const PAD: DeviceId = DeviceId(9);
+
+    fn swipe_rules(threshold: Option<u8>) -> Rules {
+        Rules::builder()
+            .gesture(
+                3,
+                Direction::Left,
+                vec![key("KEY_LEFTMETA"), CTRL, key("KEY_RIGHT")],
+                threshold,
+            )
+            .build()
+            .unwrap_or_default()
+    }
+
+    fn pad(s: &mut Session, threshold: Option<u8>) {
+        // 10 units per millimetre on both axes.
+        if let Some(res) = Resolution::new(10, 10) {
+            s.add_touchpad(PAD, swipe_rules(threshold), res);
+        }
+    }
+
+    /// Three fingers down, `dx` units across, then lifted.
+    fn three_finger(s: &mut Session, dx: i32, out: &mut Vec<KeyEvent>) -> Option<SwipeDecision> {
+        let mut last = None;
+        for input in [
+            TouchInput::Fingers(3),
+            TouchInput::Motion { dx, dy: 0 },
+            TouchInput::Fingers(0),
+        ] {
+            if let Some(d) = s.on_touch(PAD, input, t(5), out) {
+                last = Some(d);
+            }
+        }
+        last
+    }
+
+    // Verifies: ESC-SRS-119, ESC-SRS-120
+    #[test]
+    fn a_matched_swipe_presses_its_shortcut_in_order_and_releases_in_reverse() {
+        let mut s = Session::default();
+        pad(&mut s, None);
+        let mut out = Vec::new();
+        let decision = three_finger(&mut s, -250, &mut out);
+        let right = key("KEY_RIGHT");
+        assert_eq!(
+            out,
+            [
+                KeyEvent::press(key("KEY_LEFTMETA")),
+                KeyEvent::press(CTRL),
+                KeyEvent::press(right),
+                KeyEvent::release(right),
+                KeyEvent::release(CTRL),
+                KeyEvent::release(key("KEY_LEFTMETA")),
+            ]
+        );
+        assert_eq!(
+            decision,
+            Some(SwipeDecision::Sent {
+                fingers: 3,
+                direction: Direction::Left
+            })
+        );
+        assert!(s.held().is_empty());
+    }
+
+    // Verifies: ESC-SRS-117
+    #[test]
+    fn a_swipe_short_of_the_threshold_sends_nothing() {
+        let mut s = Session::default();
+        pad(&mut s, Some(30));
+        let mut out = Vec::new();
+        // 29.9 mm against a 30 mm threshold.
+        let decision = three_finger(&mut s, -299, &mut out);
+        assert!(out.is_empty());
+        assert_eq!(
+            decision,
+            Some(SwipeDecision::BelowThreshold {
+                fingers: 3,
+                direction: Direction::Left
+            })
+        );
+    }
+
+    // Verifies: ESC-SRS-118
+    #[test]
+    fn unmapped_and_cancelled_swipes_send_nothing() {
+        let mut s = Session::default();
+        pad(&mut s, None);
+        let mut out = Vec::new();
+        assert_eq!(
+            three_finger(&mut s, 400, &mut out),
+            Some(SwipeDecision::Unmapped {
+                fingers: 3,
+                direction: Direction::Right
+            })
+        );
+        let mut last = None;
+        for input in [
+            TouchInput::Fingers(3),
+            TouchInput::Motion { dx: -400, dy: 0 },
+            TouchInput::Fingers(4),
+            TouchInput::Fingers(0),
+        ] {
+            if let Some(d) = s.on_touch(PAD, input, t(5), &mut out) {
+                last = Some(d);
+            }
+        }
+        assert_eq!(last, Some(SwipeDecision::Cancelled { fingers: 3 }));
+        assert!(out.is_empty());
+    }
+
+    // Verifies: ESC-SRS-125
+    #[test]
+    fn a_swipe_while_a_dual_role_key_is_held_suppresses_its_tap() {
+        let mut s = Session::default();
+        s.add_device(A, caps());
+        pad(&mut s, None);
+        let mut out = Vec::new();
+        s.on_key(A, KeyEvent::press(CAPS), t(0), &mut out);
+        three_finger(&mut s, -250, &mut out);
+        out.clear();
+        s.on_key(A, KeyEvent::release(CAPS), t(50), &mut out);
+        assert_eq!(out, [KeyEvent::release(CTRL)]);
+    }
+
+    #[test]
+    fn a_held_control_survives_a_swipe_that_also_uses_it() {
+        let mut s = Session::default();
+        s.add_device(A, Rules::default());
+        pad(&mut s, None);
+        let mut out = Vec::new();
+        s.on_key(A, KeyEvent::press(CTRL), t(0), &mut out);
+        out.clear();
+        three_finger(&mut s, -250, &mut out);
+        assert!(!out.contains(&KeyEvent::release(CTRL)));
+        assert!(s.held().keys().any(|k| k == CTRL));
+        s.remove_device(PAD, &mut out);
+        assert!(!s.has_touchpad(PAD));
     }
 }
 
