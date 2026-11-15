@@ -38,6 +38,20 @@ pkgs.testers.runNixOSTest {
             ];
           }
           {
+            id = "5350:5447";
+            gesture = [
+              {
+                fingers = 3;
+                direction = "left";
+                keys = [
+                  "KEY_LEFTMETA"
+                  "KEY_LEFTCTRL"
+                  "KEY_RIGHT"
+                ];
+              }
+            ];
+          }
+          {
             id = "5350:5445";
             dual_role = [
               {
@@ -116,6 +130,62 @@ pkgs.testers.runNixOSTest {
     """
     machine.succeed("cat > /tmp/mouse.py <<'PY'\n" + mouse_fixture + "\nPY")
 
+    # A three-finger touchpad: 30 units per millimetre on both axes.
+    # Verifies: ESC-SRS-113, ESC-SRS-114, ESC-SRS-115, ESC-SRS-116, ESC-SRS-119, ESC-SRS-120
+    touchpad_fixture = """
+    import time, evdev
+    from evdev import ecodes as e, UInput, AbsInfo
+    caps = {
+        e.EV_KEY: [e.BTN_LEFT, e.BTN_TOUCH, e.BTN_TOOL_FINGER, e.BTN_TOOL_DOUBLETAP, e.BTN_TOOL_TRIPLETAP, e.BTN_TOOL_QUADTAP],
+        e.EV_ABS: [
+            (e.ABS_X, AbsInfo(0, 0, 3000, 0, 0, 30)),
+            (e.ABS_Y, AbsInfo(0, 0, 2000, 0, 0, 30)),
+            (e.ABS_MT_SLOT, AbsInfo(0, 0, 4, 0, 0, 0)),
+            (e.ABS_MT_POSITION_X, AbsInfo(0, 0, 3000, 0, 0, 30)),
+            (e.ABS_MT_POSITION_Y, AbsInfo(0, 0, 2000, 0, 0, 30)),
+            (e.ABS_MT_TRACKING_ID, AbsInfo(0, 0, 65535, 0, 0, 0)),
+        ],
+    }
+    ui = UInput(caps, name="vm-touchpad", vendor=0x5350, product=0x5447,
+                input_props=[e.INPUT_PROP_POINTER, e.INPUT_PROP_BUTTONPAD])
+    time.sleep(1.5)
+    # Never grabbed: our own exclusive grab succeeds.
+    ui.device.grab()
+    ui.device.ungrab()
+    keyboard = next(d for d in map(evdev.InputDevice, evdev.list_devices())
+                    if d.name.startswith("Escape Pod virtual keyboard"))
+    keyboard.grab()
+    def frame(events):
+        for kind, code, value in events:
+            ui.write(kind, code, value)
+        ui.syn()
+        time.sleep(0.01)
+    land = []
+    for slot in range(3):
+        land += [(e.EV_ABS, e.ABS_MT_SLOT, slot), (e.EV_ABS, e.ABS_MT_TRACKING_ID, 100 + slot),
+                 (e.EV_ABS, e.ABS_MT_POSITION_X, 2500 + 100 * slot), (e.EV_ABS, e.ABS_MT_POSITION_Y, 1000)]
+    frame(land + [(e.EV_KEY, e.BTN_TOUCH, 1), (e.EV_KEY, e.BTN_TOOL_TRIPLETAP, 1)])
+    # 30 mm to the left in fifteen steps of 2 mm.
+    for step in range(1, 16):
+        moves = []
+        for slot in range(3):
+            moves += [(e.EV_ABS, e.ABS_MT_SLOT, slot), (e.EV_ABS, e.ABS_MT_POSITION_X, 2500 + 100 * slot - 60 * step)]
+        frame(moves)
+    lift = []
+    for slot in range(3):
+        lift += [(e.EV_ABS, e.ABS_MT_SLOT, slot), (e.EV_ABS, e.ABS_MT_TRACKING_ID, -1)]
+    frame(lift + [(e.EV_KEY, e.BTN_TOOL_TRIPLETAP, 0), (e.EV_KEY, e.BTN_TOUCH, 0)])
+    time.sleep(0.3)
+    got = []
+    while True:
+        event = keyboard.read_one()
+        if event is None: break
+        if event.type == e.EV_KEY: got.append((event.code, event.value))
+    want = [(e.KEY_LEFTMETA, 1), (e.KEY_LEFTCTRL, 1), (e.KEY_RIGHT, 1), (e.KEY_RIGHT, 0), (e.KEY_LEFTCTRL, 0), (e.KEY_LEFTMETA, 0)]
+    assert got == want, got
+    """
+    machine.succeed("cat > /tmp/touchpad.py <<'PY'\n" + touchpad_fixture + "\nPY")
+
     machine.wait_for_unit("escapepod.service")
     assert machine.succeed("systemctl show -p User --value escapepod").strip() == "escapepod"
     machine.succeed("test -c /dev/uinput && stat -c %G /dev/uinput | grep -qx escapepod")
@@ -125,6 +195,7 @@ pkgs.testers.runNixOSTest {
     # A tap through the real kernel path.
     machine.succeed("python3 /tmp/fixture.py >&2")
     machine.succeed("python3 /tmp/mouse.py >&2")
+    machine.succeed("python3 /tmp/touchpad.py >&2")
 
     # The status socket: 0660, group escapepod-ctl, readable by alice.
     machine.succeed("stat -c '%a %G' /run/escapepod/escapepod.sock | grep -qx '660 escapepod-ctl'")

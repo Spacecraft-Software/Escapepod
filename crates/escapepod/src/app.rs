@@ -327,6 +327,18 @@ pub fn status_of(d: &DeviceInfo, cfg: Option<&Config>) -> &'static str {
             Some(None) => "ignored",
             _ => "grab",
         },
+        // A touchpad is never grabbed (ESC-SRS-107, 113): read for swipes
+        // when its rules map one, else observed like any pointer.
+        DeviceKind::Pointer if d.touchpad => {
+            if cfg
+                .and_then(|c| c.rules_for(d))
+                .is_some_and(|r| r.gestures().next().is_some())
+            {
+                "swipes"
+            } else {
+                "read"
+            }
+        }
         DeviceKind::Pointer
             if cfg
                 .and_then(|c| c.rules_for(d))
@@ -346,6 +358,7 @@ fn device_json(d: &DeviceInfo, cfg: Option<&Config>) -> Value {
         "product": format!("{:04x}", d.product),
         "path": d.path.display().to_string(),
         "kind": d.kind.as_str(),
+        "touchpad": d.touchpad,
         "status": status_of(d, cfg),
     })
 }
@@ -377,6 +390,7 @@ fn rules_json(r: &Rules) -> Value {
         "dual_role": r.dual_roles().map(|d| json!({ "key": d.key.to_string(), "hold": d.hold.to_string(), "tap": d.tap.to_string() })).collect::<Vec<_>>(),
         "remap": r.remaps().map(|(s, t)| json!({ "from": s.to_string(), "to": t.to_string() })).collect::<Vec<_>>(),
         "button": r.buttons().map(|(button, keys)| json!({ "button": button.to_string(), "keys": keys.iter().map(ToString::to_string).collect::<Vec<_>>() })).collect::<Vec<_>>(),
+        "gesture": r.gestures().map(|(fingers, direction, g)| json!({ "fingers": fingers, "direction": direction.name(), "keys": g.keys.iter().map(ToString::to_string).collect::<Vec<_>>(), "threshold_mm": g.threshold_mm })).collect::<Vec<_>>(),
         "protected": r.protected().map(|k| k.to_string()).collect::<Vec<_>>(),
     })
 }
@@ -436,6 +450,12 @@ fn daemon_run(cli: &Cli, args: &RunArgs, mode: &Mode, io: &mut Io<'_>) -> Result
     if cfg.has_buttons() && args.backend == BackendArg::X11 {
         return Err(AppError::invalid(
             "the X11 backend cannot suppress mouse buttons",
+            "escapepod daemon run --backend evdev --dry-run",
+        ));
+    }
+    if cfg.has_gestures() && args.backend == BackendArg::X11 {
+        return Err(AppError::invalid(
+            "the X11 backend has no device access, so it cannot read a touchpad",
             "escapepod daemon run --backend evdev --dry-run",
         ));
     }

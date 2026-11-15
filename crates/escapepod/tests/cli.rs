@@ -258,7 +258,7 @@ fn every_global_flag_is_accepted() {
         .unwrap();
     assert!(
         String::from_utf8_lossy(&csv.stdout)
-            .starts_with("kind,name,path,product,status,vendor\r\n")
+            .starts_with("kind,name,path,product,status,touchpad,vendor\r\n")
     );
     let explore = cmd(&root)
         .args(["describe", "--format", "explore"])
@@ -783,6 +783,51 @@ fn button_configuration_is_visible_and_x11_rejects_it() {
         .output()
         .unwrap();
     assert_eq!(run.status.code(), Some(2));
+}
+
+#[test]
+// Verifies: ESC-SRS-122, ESC-SRS-124, ESC-SRS-127, ESC-SRS-128
+fn gesture_configuration_is_visible_and_x11_rejects_it() {
+    let root = scratch("gestures");
+    let config = root.join("gestures.toml");
+    fs::write(
+        &config,
+        "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_LEFTMETA','KEY_LEFTCTRL','KEY_RIGHT']\n",
+    )
+    .unwrap();
+    let check = cmd(&root)
+        .args(["config", "check", "--config"])
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let gesture = &stdout_doc(&check)["data"]["mappings"]["gesture"][0];
+    assert_eq!(gesture["fingers"], 3);
+    assert_eq!(gesture["direction"], "left");
+    assert_eq!(gesture["threshold_mm"], 20);
+    let run = cmd(&root)
+        .args(["daemon", "run", "--yes", "--backend", "x11", "--config"])
+        .arg(&config)
+        .output()
+        .unwrap();
+    assert_eq!(run.status.code(), Some(2));
+    for bad in [
+        "[[gesture]]\nfingers=2\ndirection='left'\nkeys=['KEY_A']\n",
+        "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_A']\nthreshold_mm=101\n",
+    ] {
+        let file = root.join("bad.toml");
+        fs::write(&file, bad).unwrap();
+        let out = cmd(&root)
+            .args(["config", "check", "--config"])
+            .arg(&file)
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(2), "{bad}");
+    }
 }
 
 #[test]

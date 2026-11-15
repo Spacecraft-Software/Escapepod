@@ -8,7 +8,10 @@ mod common;
 use std::collections::BTreeMap;
 
 use common::{action, inputs, rules};
-use escapepod_core::{DeviceId, Engine, Input, Instant, KeyEvent, KeyValue, Rules, Session};
+use escapepod_core::{
+    DeviceId, Direction, Engine, Input, Instant, KeyEvent, KeyValue, Resolution, Rules, Session,
+    TouchInput,
+};
 use proptest::prelude::*;
 
 fn run(seq: &[(Input, escapepod_core::Instant)]) -> Vec<KeyEvent> {
@@ -41,6 +44,65 @@ proptest! {
             if which == 0 { session.on_key(DeviceId(1), ev, Instant::default(), &mut out); }
             else { session.on_button(DeviceId(2), ev, Instant::default(), &mut out); }
         }
+        session.release_all(&mut out);
+        let mut depth = BTreeMap::new();
+        for ev in out {
+            let d = depth.entry(ev.key).or_insert(0i32);
+            match ev.value { KeyValue::Press => *d += 1, KeyValue::Release => *d -= 1, KeyValue::Repeat => {} }
+            prop_assert!((0..=1).contains(d));
+        }
+        prop_assert!(depth.values().all(|&d| d == 0));
+    }
+
+    // Verifies: ESC-SRS-119, ESC-SRS-120, ESC-SRS-121
+    /// Swipes interleaved with a keyboard holding Control and with random
+    /// touchpad noise never leave a key down, never press a held key twice
+    /// and send at most one shortcut per swipe.
+    #[test]
+    fn interleaved_swipes_are_balanced(actions in proptest::collection::vec((0u8..4, -400i32..400, any::<bool>()), 0..120)) {
+        let ctrl = common::key("KEY_LEFTCTRL");
+        let meta = common::key("KEY_LEFTMETA");
+        let right = common::key("KEY_RIGHT");
+        let left = common::key("KEY_LEFT");
+        let rules = Rules::builder()
+            .gesture(3, Direction::Left, vec![meta, ctrl, right], None)
+            .gesture(4, Direction::Right, vec![meta, ctrl, left], Some(5))
+            .build()
+            .unwrap();
+        let mut session = Session::default();
+        session.add_device(DeviceId(1), Rules::default());
+        session.add_touchpad(DeviceId(2), rules, Resolution::new(10, 10).unwrap());
+        let mut out = Vec::new();
+        let mut sent = 0usize;
+        let mut ends = 0usize;
+        for (which, amount, flag) in actions {
+            match which {
+                0 => {
+                    let ev = if flag { KeyEvent::press(ctrl) } else { KeyEvent::release(ctrl) };
+                    session.on_key(DeviceId(1), ev, Instant::default(), &mut out);
+                }
+                1 => {
+                    let fingers = u8::try_from(amount.unsigned_abs() % 6).unwrap();
+                    let before = out.len();
+                    if let Some(d) = session.on_touch(DeviceId(2), TouchInput::Fingers(fingers), Instant::default(), &mut out) {
+                        ends += 1;
+                        if matches!(d, escapepod_core::SwipeDecision::Sent { .. }) {
+                            sent += 1;
+                            prop_assert!(out.len() > before);
+                        } else {
+                            prop_assert_eq!(out.len(), before);
+                        }
+                    }
+                }
+                _ => {
+                    let (dx, dy) = if flag { (amount, amount / 3) } else { (amount / 3, amount) };
+                    let before = out.len();
+                    session.on_touch(DeviceId(2), TouchInput::Motion { dx, dy }, Instant::default(), &mut out);
+                    prop_assert_eq!(out.len(), before, "motion alone sends nothing");
+                }
+            }
+        }
+        prop_assert!(sent <= ends);
         session.release_all(&mut out);
         let mut depth = BTreeMap::new();
         for ev in out {

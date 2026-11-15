@@ -48,7 +48,8 @@ used, timeout, remap).  Other keys print as @samp{other}; @option{--all-keys}
 shows them too, on a terminal only.
 @item device list
 Lists input devices from sysfs with what the daemon would do with each:
-@samp{grab}, @samp{read} (pointers), @samp{ignored}, @samp{own} (an Escape
+@samp{grab}, @samp{read} (pointers), @samp{swipes} (a touchpad read for
+gesture rules, never grabbed), @samp{ignored}, @samp{own} (an Escape
 Pod virtual keyboard) or @samp{none}.  It needs no device access.
 @item config check
 Validates the configuration and prints the resulting mappings; it touches
@@ -182,6 +183,53 @@ ungrabbed with a diagnostic.  X11 rejects button rules.
 When migrating from xremap, validate the configuration first, stop xremap,
 then start Escape Pod.  Remove the xremap ignore rule after xremap has been
 removed.  Keep only one remapper grabbing the physical devices.
+
+@section Touchpad swipes
+
+On the evdev backend, a three- or four-finger touchpad swipe can send a
+shortcut, such as switching workspaces in a session whose desktop gives
+those swipes no meaning:
+
+@example
+[[device]]
+name = "Elan Touchpad"
+[[device.gesture]]
+fingers = 3
+direction = "left"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_RIGHT"]
+[[device.gesture]]
+fingers = 3
+direction = "right"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_LEFT"]
+threshold_mm = 25
+@end example
+
+Use the touchpad's name from @code{device list}, where it shows the status
+@samp{swipes} once a rule maps a gesture to it.  @code{fingers} is three or
+four; @code{direction} is @samp{left}, @samp{right}, @samp{up} or
+@samp{down}; @code{keys} is one to eight distinct keyboard keys;
+@code{threshold_mm}, 5 to 100, is how far the swipe must travel, 20 by
+default.  Global @code{[[gesture]]} rules also work; a per-device list
+replaces them.
+
+The shortcut is sent once, when the fingers lift: its keys go down in list
+order, then come up in reverse.  A finger landing mid-swipe cancels it, but
+a fourth finger landing before the swipe has moved a millimetre makes it a
+four-finger swipe, because fingers never touch down at the same instant.
+The direction is the axis the swipe moved along most, in millimetres
+through the touchpad's own resolution; a touchpad reporting none is left a
+plain pointer, with a diagnostic.
+
+The touchpad is opened read-only and never grabbed, so it goes on moving
+the pointer and scrolling.  That also means the desktop sees every swipe:
+map only the swipes it gives no meaning, or it acts on the swipe as well
+as on the shortcut.  The X11 backend rejects gesture rules.  Logs, the
+status socket and @code{event monitor} report a swipe by finger count,
+direction and decision (@samp{sent}, @samp{below-threshold},
+@samp{unmapped}, @samp{cancelled}), never by position.
+
+When migrating from Touch@'egg, map the same swipes, validate the
+configuration, stop Touch@'egg's client and daemon, then start Escape Pod.
 
 @node Troubleshooting
 @chapter Troubleshooting

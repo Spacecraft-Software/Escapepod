@@ -129,10 +129,15 @@ Array of key names never mapped.
 @item [[button]]
 @code{button} (a mouse button name) and @code{keys} (one to eight distinct
 keyboard keys).  Presses follow the list order; releases reverse it.
+@item [[gesture]]
+@code{fingers} (3 or 4), @code{direction} (@samp{left}, @samp{right},
+@samp{up}, @samp{down}), @code{keys} (one to eight distinct keyboard keys)
+and optionally @code{threshold_mm} (5 to 100, default 20).  Sent once when
+the swipe ends: presses follow the list order, then releases reverse it.
 @item [[device]]
 Exactly one of @code{name} (the kernel device name) or @code{id}
 (@samp{VVVV:PPPP} in hexadecimal), and optionally @code{ignore},
-@code{tap_timeout_ms}, @code{dual_role}, @code{button} and @code{remap}, which replace the
+@code{tap_timeout_ms}, @code{dual_role}, @code{button}, @code{gesture} and @code{remap}, which replace the
 global lists for that device.  The first matching rule wins.
 @end table
 
@@ -197,14 +202,20 @@ does not exist.
 UTF-8 JSON Lines, one object per line, compact.
 @item On connect
 The daemon writes one status object: @code{backend}, @code{devices}
-(@code{name}, @code{path}, @code{grabbed}, for keyboards and pointers), @code{pointers} (a count) and
-@code{held} (the number of keys held, never which).  Schema:
+(@code{name}, @code{path}, @code{grabbed}, for keyboards and pointers, and
+@code{touchpad}, always true, for a touchpad read for swipes), @code{pointers}
+(a count), @code{touchpads} (a count) and @code{held} (the number of keys held,
+never which).  Schema:
 @file{schemas/status.schema.json}.
 @item Subscription
 A client that writes @samp{events} receives one record per event of a
 managed key: @code{timestamp}, @code{device}, @code{key}, @code{value}
 (@samp{press}, @samp{release}, @samp{repeat}) and @code{decision}.  The key
-code of an unmanaged key is never written.
+code of an unmanaged key is never written.  A swipe is one record whose
+@code{key} is @samp{swipe-@var{N}-@var{direction}} (or @samp{swipe-@var{N}}
+when cancelled), @code{value} @samp{end} or @samp{cancel}, and
+@code{decision} @samp{sent}, @samp{below-threshold}, @samp{unmapped} or
+@samp{cancelled}; no position or motion value is ever written.
 @item Errors
 A client that cannot be written to is dropped; a second daemon finding a live
 socket exits 5.

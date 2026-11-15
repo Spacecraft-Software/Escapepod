@@ -203,22 +203,22 @@ would bring back C libraries the G2 design removed.
 - [x] P-051 G1 re-entry: ESC-SRS-113 to 128 and ESC-NEED-010 added, ESC-SRS-107 amended (and
       moved to M7), the release gate renumbered M8; characteristics gate run on the changed rows;
       gate record in `COMPLIANCE.md`
-- [ ] P-052 Core swipe recogniser: touchpad events in (finger-count keys, slot positions in
+- [x] P-052 Core swipe recogniser: touchpad events in (finger-count keys, slot positions in
       device units with the touchpad's resolution), swipe begin, accumulate, end on a falling
       count, cancel on a rising one; direction by the dominant axis; the threshold in mm; a
       gesture → shortcut map in `Rules` (1 to 8 keys); the shortcut pressed in order and
       released in reverse through the held-keys ledger; held dual-role keys marked used —
       ESC-SRS-115, 116, 117, 118, 119, 120, 121, 125
-- [ ] P-053 evdev touchpad path: touchpads recognised from their properties and multi-touch
+- [x] P-053 evdev touchpad path: touchpads recognised from their properties and multi-touch
       axes, opened read-only and never grabbed; resolution from the axis info, a touchpad
       without one refused for gestures with a warning; removal, hotplug and reload as for
       pointers; button rules never grab a touchpad — ESC-SRS-107, 113, 114
-- [ ] P-054 Config and CLI: `[[gesture]]` globally and per device, with limits (fingers,
+- [x] P-054 Config and CLI: `[[gesture]]` globally and per device, with limits (fingers,
       direction, keys, threshold); `config check`, `--dry-run`, `device list` and `schema` show
       gesture rules and observed touchpads; ICD and config schema; the X11 backend refuses
       gesture rules; swipes reported by finger count, direction and decision only —
       ESC-SRS-122, 123, 124, 126, 127, 128
-- [ ] P-055 Evidence: recorded multi-touch traces replayed through the engine; a property test
+- [x] P-055 Evidence: recorded multi-touch traces replayed through the engine; a property test
       that output stays balanced with swipes interleaved; the VM test gains a uinput
       multi-touch touchpad fixture (three-finger left swipe → Super+Control+Right, pointer
       motion still passing)
