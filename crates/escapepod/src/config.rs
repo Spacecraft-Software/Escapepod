@@ -127,14 +127,26 @@ impl Matcher {
     }
 }
 
+/// A validated gesture rule: fingers, direction, shortcut, threshold.
+type GestureSpec = (u8, Direction, Vec<KeyCode>, Option<u8>);
+
 /// The mapping lists before they become [`Rules`].
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Mapping {
     dual: Vec<DualRole>,
     remap: Vec<(KeyCode, KeyCode)>,
     buttons: Vec<(KeyCode, Vec<KeyCode>)>,
-    gestures: Vec<(u8, Direction, Vec<KeyCode>, Option<u8>)>,
+    gestures: Vec<GestureSpec>,
     tap_timeout: Option<Duration>,
+}
+
+impl Mapping {
+    fn with_gestures(&self, mut b: escapepod_core::RulesBuilder) -> escapepod_core::RulesBuilder {
+        for (fingers, direction, keys, threshold) in &self.gestures {
+            b = b.gesture(*fingers, *direction, keys.clone(), *threshold);
+        }
+        b
+    }
 }
 
 /// One validated `[[device]]` rule.
@@ -294,9 +306,7 @@ pub fn load(
         for (button, keys) in &m.buttons {
             b = b.button(*button, keys.clone());
         }
-        for (fingers, direction, keys, threshold) in &m.gestures {
-            b = b.gesture(*fingers, *direction, keys.clone(), *threshold);
-        }
+        b = m.with_gestures(b);
         for &p in &protect {
             b = b.protect(p);
         }
@@ -462,8 +472,23 @@ impl Ctx<'_> {
                 Ok((button, keys))
             })
             .collect::<Result<_, AppError>>()?;
-        // Implements: ESC-SRS-122, ESC-SRS-123, ESC-SRS-127
-        let gestures = gestures
+        let gestures = self.gestures(gestures)?;
+        let tap_timeout = timeout
+            .map(|t| check_timeout(*t.get_ref(), Some(t.span().start), self))
+            .transpose()?;
+        Ok(Mapping {
+            dual,
+            remap,
+            buttons,
+            gestures,
+            tap_timeout,
+        })
+    }
+
+    /// Validates `[[gesture]]` entries.
+    // Implements: ESC-SRS-122, ESC-SRS-123, ESC-SRS-127
+    fn gestures(&self, entries: &[GestureEntry]) -> Result<Vec<GestureSpec>, AppError> {
+        entries
             .iter()
             .map(|entry| {
                 let fingers = *entry.fingers.get_ref();
@@ -520,17 +545,7 @@ impl Ctx<'_> {
                 }
                 Ok((fingers, direction, keys, threshold))
             })
-            .collect::<Result<_, AppError>>()?;
-        let tap_timeout = timeout
-            .map(|t| check_timeout(*t.get_ref(), Some(t.span().start), self))
-            .transpose()?;
-        Ok(Mapping {
-            dual,
-            remap,
-            buttons,
-            gestures,
-            tap_timeout,
-        })
+            .collect()
     }
 
     fn key(&self, name: &Spanned<String>) -> Result<KeyCode, AppError> {

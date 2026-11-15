@@ -194,6 +194,7 @@ enum Ready {
     Client(usize),
     Keyboard(DeviceId),
     Pointer(DeviceId),
+    Touchpad(DeviceId),
 }
 
 /// `daemon run` on the evdev backend, after its guards.
@@ -224,18 +225,7 @@ pub fn run(
         io.env.var("DISPLAY").is_some(),
     ) {
         Selected::X11 => {
-            if cfg.has_buttons() {
-                return Err(AppError::invalid(
-                    "the X11 backend cannot suppress mouse buttons",
-                    "escapepod daemon run --backend evdev --dry-run",
-                ));
-            }
-            if only_device.is_some() {
-                return Err(AppError::invalid(
-                    "--only-device requires the evdev backend",
-                    "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
-                ));
-            }
+            refuse_on_x11(&cfg, only_device.is_some())?;
             if backend == BackendArg::Auto {
                 mode.diag(
                     io.err,
@@ -322,11 +312,53 @@ pub fn select(
     }
 }
 
+/// The devices behind the `event*` nodes inotify reported.
+fn hotplugged(
+    inotify: Option<&Inotify>,
+    sysfs: &std::path::Path,
+    dev_dir: &std::path::Path,
+) -> Vec<escapepod_evdev::DeviceInfo> {
+    inotify
+        .and_then(|i| i.read_events().ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|e| e.name.map(|n| n.to_string_lossy().into_owned()))
+        .filter_map(|name| escapepod_evdev::info(sysfs, dev_dir, &name))
+        .collect()
+}
+
+/// The configurations the X11 backend cannot serve: it observes and
+/// injects keys only, without device access.
+fn refuse_on_x11(cfg: &Config, only_device: bool) -> Result<(), AppError> {
+    if cfg.has_buttons() {
+        return Err(AppError::invalid(
+            "the X11 backend cannot suppress mouse buttons",
+            "escapepod daemon run --backend evdev --dry-run",
+        ));
+    }
+    // Implements: ESC-SRS-124
+    if cfg.has_gestures() {
+        return Err(AppError::invalid(
+            "the X11 backend has no device access, so it cannot read a touchpad",
+            "escapepod daemon run --backend evdev --dry-run",
+        ));
+    }
+    if only_device {
+        return Err(AppError::invalid(
+            "--only-device requires the evdev backend",
+            "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
+        ));
+    }
+    Ok(())
+}
+
 /// Whether any keyboard the configuration matches can be opened for
 /// reading (opened and closed at once; never grabbed).
 fn any_keyboard_readable(cfg: &Config, env: &Env) -> bool {
     app::scan_devices(env).unwrap_or_default().iter().any(|d| {
-        (d.kind == DeviceKind::Keyboard || d.kind == DeviceKind::Pointer && cfg.has_buttons())
+        (d.kind == DeviceKind::Keyboard
+            || d.kind == DeviceKind::Pointer && cfg.has_buttons()
+            || d.touchpad && cfg.has_gestures())
             && !d.is_own()
             && cfg.rules_for(d).is_some()
             && std::fs::File::open(&d.path).is_ok()
@@ -417,17 +449,8 @@ fn evdev_loop(
                     }
                 }
                 Ready::Hotplug => {
-                    let names: Vec<String> = inotify
-                        .as_ref()
-                        .and_then(|i| i.read_events().ok())
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter_map(|e| e.name.map(|n| n.to_string_lossy().into_owned()))
-                        .collect();
-                    for name in names {
-                        if let Some(info) = escapepod_evdev::info(&sysfs, &dev_dir, &name) {
-                            d.hotplug(&info, now(start));
-                        }
+                    for info in hotplugged(inotify.as_ref(), &sysfs, &dev_dir) {
+                        d.hotplug(&info, now(start));
                     }
                 }
                 Ready::Listener => {
@@ -445,6 +468,7 @@ fn evdev_loop(
                     }
                 }
                 Ready::Pointer(id) => d.pointer_ready(id, now(start)),
+                Ready::Touchpad(id) => d.touchpad_ready(id, now(start)),
             }
         }
         d.tick(now(start));
@@ -484,6 +508,10 @@ fn wait(
     for (id, p) in d.pointers() {
         tags.push(Ready::Pointer(id));
         fds.push(p.as_fd());
+    }
+    for (id, t) in d.touchpads() {
+        tags.push(Ready::Touchpad(id));
+        fds.push(t.as_fd());
     }
     let mut pfds: Vec<PollFd<'_>> = fds
         .iter()

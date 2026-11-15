@@ -29,6 +29,20 @@
         }
       }
     },
+    "gesture": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fingers", "direction", "keys"],
+        "properties": {
+          "fingers": { "enum": [3, 4] },
+          "direction": { "enum": ["left", "right", "up", "down"] },
+          "keys": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+          "threshold_mm": { "type": "integer", "minimum": 5, "maximum": 100, "default": 20 }
+        }
+      }
+    },
     "remap": {
       "type": "array",
       "items": {
@@ -47,6 +61,7 @@
     "dual_role": { "$ref": "#/$defs/dual_role" },
     "remap": { "$ref": "#/$defs/remap" },
     "button": { "$ref": "#/$defs/button" },
+    "gesture": { "$ref": "#/$defs/gesture" },
     "device": {
       "type": "array",
       "items": {
@@ -60,7 +75,8 @@
           "tap_timeout_ms": { "$ref": "#/$defs/timeout" },
           "dual_role": { "$ref": "#/$defs/dual_role" },
           "remap": { "$ref": "#/$defs/remap" },
-          "button": { "$ref": "#/$defs/button" }
+          "button": { "$ref": "#/$defs/button" },
+          "gesture": { "$ref": "#/$defs/gesture" }
         }
       }
     }
