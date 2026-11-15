@@ -193,6 +193,25 @@ overlapping buttons cannot release one another's modifiers.  Unmapped
 pointer buttons use a second held-keys ledger and are released on removal,
 read failure, reload, termination, panic and emergency release.
 
+@strong{Touchpad swipes.}  A pointer whose sysfs capabilities show the
+three-finger tool key (@code{BTN_TOOL_TRIPLETAP}) and multi-touch positions,
+and which is not a touchscreen (@code{INPUT_PROP_DIRECT}), is a touchpad.
+When its rules map a gesture it is opened read-only with a plain
+@code{File::open} (never @code{Device::open}, which asks for write access)
+and never grabbed.  @code{TouchDecoder} reduces its multi-touch frames to
+the finger count, from the @code{BTN_TOOL_*} keys, and the mean motion of
+the contacts present in consecutive frames, matched by slot and tracking
+id; the pure @code{SwipeRecognizer} in @code{escapepod-core} turns those
+into swipes.  A swipe ends when its finger count falls and is cancelled
+when it rises, except that a rise from three to four before 1 mm of
+travel restarts it as a four-finger swipe, since fingers land a few
+milliseconds apart; no new swipe starts until fewer than three fingers
+remain.  Motion becomes micrometres through the resolution of the
+multi-touch axes.  The shortcut is pressed and released through the
+held-keys ledger under its own holder, so a modifier held on a keyboard
+stays down.  libinput was declined: it would bring back the C libraries
+this design removed (COMPLIANCE.md, G1 re-entry of 2026-11-15).
+
 @option{--only-device} restricts admission before opening a device and
 continues to apply during hotplug and reload.  X11 cannot enforce the
 restriction and rejects it.

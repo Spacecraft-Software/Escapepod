@@ -224,6 +224,11 @@ fn mappings() -> Value {
                 "key": { "type": "string" }, "hold": { "type": "string" }, "tap": { "type": "string" } } } },
             "remap": { "type": "array", "items": { "type": "object", "properties": {
                 "from": { "type": "string" }, "to": { "type": "string" } } } },
+            "gesture": { "type": "array", "items": { "type": "object", "properties": {
+                "fingers": { "type": "integer", "enum": [3, 4] },
+                "direction": { "type": "string", "enum": ["left", "right", "up", "down"] },
+                "keys": key_list(),
+                "threshold_mm": { "type": "integer", "minimum": 5, "maximum": 100 } } } },
             "protected": key_list(),
         }
     })
@@ -238,7 +243,8 @@ fn device_record() -> Value {
             "product": { "type": "string", "pattern": "^[0-9a-f]{4}$" },
             "path": { "type": "string" },
             "kind": { "type": "string", "enum": ["keyboard", "pointer", "other"] },
-            "status": { "type": "string", "enum": ["grab", "read", "ignored", "own", "none"] },
+            "touchpad": { "type": "boolean", "description": "A multi-touch touchpad; never grabbed" },
+            "status": { "type": "string", "enum": ["grab", "read", "swipes", "ignored", "own", "none"] },
         }
     })
 }

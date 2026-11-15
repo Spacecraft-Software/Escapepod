@@ -283,23 +283,23 @@ recorded in [`COMPLIANCE.md`](COMPLIANCE.md); `PROJECTS.md` row added.
 
 ## M7 — Touchpad gestures
 
-- [ ] ESC-SRS-107 Pointers a button rule matches are grabbed, touchpads never (amended 2026-11-15)
-- [ ] ESC-SRS-113 Touchpads never grabbed
-- [ ] ESC-SRS-114 Touchpads opened read-only
-- [ ] ESC-SRS-115 Swipes recognised from the kernel's multi-touch events
-- [ ] ESC-SRS-116 A swipe ends when its finger count falls, with one direction
-- [ ] ESC-SRS-117 A swipe shorter than the threshold sends nothing
-- [ ] ESC-SRS-118 A rising finger count cancels the swipe
-- [ ] ESC-SRS-119 Swipe sends the shortcut's keys in order
-- [ ] ESC-SRS-120 Then lifts them in reverse order
-- [ ] ESC-SRS-121 At most one shortcut per swipe
-- [ ] ESC-SRS-122 Finger count is three or four
-- [ ] ESC-SRS-123 Gesture shortcut length bounded
-- [ ] ESC-SRS-124 X11 refuses gesture rules
-- [ ] ESC-SRS-125 A swipe marks held dual-role keys used
-- [ ] ESC-SRS-126 Swipes reported without position or motion
-- [ ] ESC-SRS-127 Threshold in millimetres, 5 to 100
-- [ ] ESC-SRS-128 Default threshold 20 mm
+- [x] ESC-SRS-107 Pointers a button rule matches are grabbed, touchpads never (amended 2026-11-15)
+- [x] ESC-SRS-113 Touchpads never grabbed
+- [x] ESC-SRS-114 Touchpads opened read-only
+- [x] ESC-SRS-115 Swipes recognised from the kernel's multi-touch events
+- [x] ESC-SRS-116 A swipe ends when its finger count falls, with one direction
+- [x] ESC-SRS-117 A swipe shorter than the threshold sends nothing
+- [x] ESC-SRS-118 A rising finger count cancels the swipe
+- [x] ESC-SRS-119 Swipe sends the shortcut's keys in order
+- [x] ESC-SRS-120 Then lifts them in reverse order
+- [x] ESC-SRS-121 At most one shortcut per swipe
+- [x] ESC-SRS-122 Finger count is three or four
+- [x] ESC-SRS-123 Gesture shortcut length bounded
+- [x] ESC-SRS-124 X11 refuses gesture rules
+- [x] ESC-SRS-125 A swipe marks held dual-role keys used
+- [x] ESC-SRS-126 Swipes reported without position or motion
+- [x] ESC-SRS-127 Threshold in millimetres, 5 to 100
+- [x] ESC-SRS-128 Default threshold 20 mm
 
 
 ## M8 — Verification and release gate

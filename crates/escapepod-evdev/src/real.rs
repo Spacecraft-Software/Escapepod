@@ -5,17 +5,19 @@
 //! keyboard, over the safe API of the `evdev` crate.
 
 use std::io;
-use std::os::fd::{AsFd, BorrowedFd};
+use std::os::fd::{AsFd, BorrowedFd, OwnedFd};
 use std::path::{Path, PathBuf};
 
-use escapepod_core::{KeyCode, KeyEvent, KeyValue};
+use escapepod_core::{KeyCode, KeyEvent, KeyValue, Resolution, TouchInput};
 use evdev::uinput::VirtualDevice;
 use evdev::{
-    AttributeSet, BusType, Device, EventType, InputEvent, InputId, MiscCode, RelativeAxisCode,
+    AbsoluteAxisCode, AttributeSet, BusType, Device, EventType, InputEvent, InputId, MiscCode,
+    RelativeAxisCode,
 };
 
+use crate::TouchDecoder;
 use crate::discover::{OWN_NAME_PREFIX, OWN_PRODUCT, OWN_VENDOR};
-use crate::io::{Keyboard, Opener, Pointer, PointerEvent, Sink};
+use crate::io::{Keyboard, Opener, Pointer, PointerEvent, Sink, Touchpad};
 
 /// `BTN_MISC`, the first button code: keys below it, plus the range from
 /// `KEY_OK` (0x160) up, are keyboard keys the virtual keyboard declares.
@@ -187,6 +189,73 @@ fn key_event(e: &InputEvent) -> Option<KeyEvent> {
     })
 }
 
+/// A touchpad read for swipes. Opened read-only through a plain
+/// `File::open`, never `Device::open`, which asks for write access first;
+/// and never grabbed.
+#[derive(Debug)]
+pub struct EvdevTouchpad {
+    dev: Device,
+    decoder: TouchDecoder,
+    resolution: Option<Resolution>,
+}
+
+/// `BTN_LEFT` to `BTN_TASK`: the buttons a touchpad click reports.
+const CLICKS: std::ops::RangeInclusive<u16> = 0x110..=0x117;
+
+impl EvdevTouchpad {
+    // Implements: ESC-SRS-113, ESC-SRS-114
+    fn open(path: &Path) -> io::Result<Self> {
+        let dev = open_read_only(path)?;
+        let (mut x, mut y) = (0, 0);
+        for (axis, info) in dev.get_absinfo()? {
+            if axis == AbsoluteAxisCode::ABS_MT_POSITION_X {
+                x = u32::try_from(info.resolution()).unwrap_or(0);
+            } else if axis == AbsoluteAxisCode::ABS_MT_POSITION_Y {
+                y = u32::try_from(info.resolution()).unwrap_or(0);
+            }
+        }
+        Ok(Self {
+            dev,
+            decoder: TouchDecoder::default(),
+            resolution: Resolution::new(x, y),
+        })
+    }
+}
+
+impl AsFd for EvdevTouchpad {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.dev.as_fd()
+    }
+}
+
+impl Touchpad for EvdevTouchpad {
+    fn resolution(&self) -> Option<Resolution> {
+        self.resolution
+    }
+
+    fn read_touch(&mut self, out: &mut Vec<TouchInput>) -> io::Result<usize> {
+        let mut presses = 0;
+        loop {
+            match self.dev.fetch_events() {
+                Ok(events) => {
+                    for ev in events {
+                        if ev.event_type() == EventType::KEY
+                            && CLICKS.contains(&ev.code())
+                            && ev.value() == 1
+                        {
+                            presses += 1;
+                        }
+                        self.decoder
+                            .feed(ev.event_type().0, ev.code(), ev.value(), out);
+                    }
+                }
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Ok(presses),
+                Err(e) => return Err(e),
+            }
+        }
+    }
+}
+
 /// Opens real devices.
 #[derive(Debug, Default)]
 pub struct EvdevOpener;
@@ -197,9 +266,20 @@ fn open(path: &Path) -> io::Result<Device> {
     Ok(dev)
 }
 
+/// Opens a pointer or touchpad read-only: `Device::open` asks for write
+/// access first, and neither ever needs it (a grab is an ioctl, and
+/// forwarding goes through the virtual pointer). A touchpad that falls back
+/// to the plain pointer path stays read-only too (ESC-SRS-114).
+fn open_read_only(path: &Path) -> io::Result<Device> {
+    let dev = Device::from_fd(OwnedFd::from(std::fs::File::open(path)?))?;
+    dev.set_nonblocking(true)?;
+    Ok(dev)
+}
+
 impl Opener for EvdevOpener {
     type Keyboard = EvdevKeyboard;
     type Pointer = EvdevPointer;
+    type Touchpad = EvdevTouchpad;
 
     fn keyboard(&mut self, path: &Path) -> io::Result<EvdevKeyboard> {
         Ok(EvdevKeyboard {
@@ -209,7 +289,13 @@ impl Opener for EvdevOpener {
     }
 
     fn pointer(&mut self, path: &Path) -> io::Result<EvdevPointer> {
-        Ok(EvdevPointer { dev: open(path)? })
+        Ok(EvdevPointer {
+            dev: open_read_only(path)?,
+        })
+    }
+
+    fn touchpad(&mut self, path: &Path) -> io::Result<EvdevTouchpad> {
+        EvdevTouchpad::open(path)
     }
 }
 

@@ -8,7 +8,7 @@
 use std::io;
 use std::path::Path;
 
-use escapepod_core::KeyEvent;
+use escapepod_core::{KeyEvent, Resolution, TouchInput};
 
 /// A kernel input event without its timestamp.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,6 +85,22 @@ pub trait Pointer {
     fn read_presses(&mut self) -> io::Result<usize>;
 }
 
+/// A touchpad read for swipes: opened read-only and never grabbed
+/// (ESC-SRS-113, 114).
+pub trait Touchpad {
+    /// The touchpad's resolution, or `None` when it reports none, which
+    /// makes it unusable for gestures.
+    fn resolution(&self) -> Option<Resolution>;
+
+    /// Appends the touch inputs waiting on the device, without blocking,
+    /// and returns how many button presses (clicks) came with them.
+    ///
+    /// # Errors
+    ///
+    /// The read error; `ENODEV` when the device was removed.
+    fn read_touch(&mut self, out: &mut Vec<TouchInput>) -> io::Result<usize>;
+}
+
 /// The virtual keyboard every output goes to.
 pub trait Sink {
     /// Whether pointer output was created before any grab.
@@ -111,6 +127,8 @@ pub trait Opener {
     type Keyboard: Keyboard;
     /// The pointer type it opens.
     type Pointer: Pointer;
+    /// The touchpad type it opens.
+    type Touchpad: Touchpad;
 
     /// Opens the keyboard at `path` for reading, without grabbing it.
     ///
@@ -125,6 +143,13 @@ pub trait Opener {
     ///
     /// The open error.
     fn pointer(&mut self, path: &Path) -> io::Result<Self::Pointer>;
+
+    /// Opens the touchpad at `path` read-only, for gestures.
+    ///
+    /// # Errors
+    ///
+    /// The open error.
+    fn touchpad(&mut self, path: &Path) -> io::Result<Self::Touchpad>;
 }
 
 // Rust guideline compliant 2026-05-18

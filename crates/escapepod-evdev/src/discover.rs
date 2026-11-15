@@ -61,6 +61,10 @@ pub struct DeviceInfo {
     pub product: u16,
     /// Keyboard, pointer or other.
     pub kind: DeviceKind,
+    /// A pointer that is a multi-touch touchpad: three-finger tool,
+    /// multi-touch positions, and not a touchscreen. Gesture rules read
+    /// these, and nothing ever grabs one (ESC-SRS-113).
+    pub touchpad: bool,
 }
 
 impl DeviceInfo {
@@ -119,12 +123,16 @@ fn read_device(dir: &Path, path: PathBuf) -> Option<DeviceInfo> {
     let vendor = read_hex(&dir.join("id/vendor")).unwrap_or(0);
     let product = read_hex(&dir.join("id/product")).unwrap_or(0);
     let keys = fs::read_to_string(dir.join("capabilities/key")).unwrap_or_default();
+    let abs = fs::read_to_string(dir.join("capabilities/abs")).unwrap_or_default();
+    let props = fs::read_to_string(dir.join("properties")).unwrap_or_default();
+    let kind = classify(&keys);
     Some(DeviceInfo {
         path,
         name,
         vendor,
         product,
-        kind: classify(&keys),
+        kind,
+        touchpad: kind == DeviceKind::Pointer && is_touchpad(&keys, &abs, &props),
     })
 }
 
@@ -148,6 +156,19 @@ fn classify(bitmap: &str) -> DeviceKind {
     }
 }
 
+/// `BTN_TOOL_TRIPLETAP`: the kernel can tell three fingers.
+const TRIPLE_TAP: u16 = 0x14e;
+/// `ABS_MT_POSITION_X`: multi-touch positions.
+const MT_POSITION_X: u16 = 0x35;
+/// `INPUT_PROP_DIRECT`: a touchscreen, whose contacts are on-screen points.
+const PROP_DIRECT: u16 = 0x01;
+
+/// Whether a pointer's capability bitmaps describe a touchpad that reports
+/// three-finger contacts with positions: a touchscreen does not count.
+fn is_touchpad(keys: &str, abs: &str, props: &str) -> bool {
+    has_bit(keys, TRIPLE_TAP) && has_bit(abs, MT_POSITION_X) && !has_bit(props, PROP_DIRECT)
+}
+
 /// Tests bit `bit` of a sysfs bitmap: space-separated hexadecimal words,
 /// most significant first, each `usize::BITS` wide.
 fn has_bit(bitmap: &str, bit: u16) -> bool {
@@ -169,6 +190,21 @@ mod tests {
     /// A touchpad: `BTN_LEFT` and touch buttons.
     const TOUCHPAD: &str = "6420 30000 0 0 0 0";
 
+    // Verifies: ESC-SRS-113
+    #[test]
+    fn a_touchpad_needs_three_finger_mt_and_is_not_a_touchscreen() {
+        // ABS_MT_POSITION_X is bit 53; INPUT_PROP_POINTER bit 0,
+        // INPUT_PROP_DIRECT bit 1.
+        let mt = "20000000000000";
+        assert!(is_touchpad(TOUCHPAD, mt, "1"));
+        assert!(!is_touchpad(TOUCHPAD, mt, "2"), "a touchscreen");
+        assert!(!is_touchpad(TOUCHPAD, "3", "1"), "no multi-touch positions");
+        assert!(
+            !is_touchpad("10000 0 0 0 0", mt, "1"),
+            "a mouse: no tool keys"
+        );
+    }
+
     #[test]
     fn classifies_bitmaps() {
         assert_eq!(classify(KEYBOARD), DeviceKind::Keyboard);
@@ -185,6 +221,7 @@ mod tests {
             vendor: 1,
             product: 2,
             kind: DeviceKind::Keyboard,
+            touchpad: false,
         };
         assert!(d.is_own());
         d.name = "renamed".into();

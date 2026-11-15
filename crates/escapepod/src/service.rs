@@ -194,6 +194,7 @@ enum Ready {
     Client(usize),
     Keyboard(DeviceId),
     Pointer(DeviceId),
+    Touchpad(DeviceId),
 }
 
 /// `daemon run` on the evdev backend, after its guards.
@@ -224,18 +225,7 @@ pub fn run(
         io.env.var("DISPLAY").is_some(),
     ) {
         Selected::X11 => {
-            if cfg.has_buttons() {
-                return Err(AppError::invalid(
-                    "the X11 backend cannot suppress mouse buttons",
-                    "escapepod daemon run --backend evdev --dry-run",
-                ));
-            }
-            if only_device.is_some() {
-                return Err(AppError::invalid(
-                    "--only-device requires the evdev backend",
-                    "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
-                ));
-            }
+            refuse_on_x11(&cfg, only_device.is_some())?;
             if backend == BackendArg::Auto {
                 mode.diag(
                     io.err,
@@ -322,11 +312,53 @@ pub fn select(
     }
 }
 
+/// The devices behind the `event*` nodes inotify reported.
+fn hotplugged(
+    inotify: Option<&Inotify>,
+    sysfs: &std::path::Path,
+    dev_dir: &std::path::Path,
+) -> Vec<escapepod_evdev::DeviceInfo> {
+    inotify
+        .and_then(|i| i.read_events().ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|e| e.name.map(|n| n.to_string_lossy().into_owned()))
+        .filter_map(|name| escapepod_evdev::info(sysfs, dev_dir, &name))
+        .collect()
+}
+
+/// The configurations the X11 backend cannot serve: it observes and
+/// injects keys only, without device access.
+fn refuse_on_x11(cfg: &Config, only_device: bool) -> Result<(), AppError> {
+    if cfg.has_buttons() {
+        return Err(AppError::invalid(
+            "the X11 backend cannot suppress mouse buttons",
+            "escapepod daemon run --backend evdev --dry-run",
+        ));
+    }
+    // Implements: ESC-SRS-124
+    if cfg.has_gestures() {
+        return Err(AppError::invalid(
+            "the X11 backend has no device access, so it cannot read a touchpad",
+            "escapepod daemon run --backend evdev --dry-run",
+        ));
+    }
+    if only_device {
+        return Err(AppError::invalid(
+            "--only-device requires the evdev backend",
+            "escapepod daemon run --backend evdev --only-device 1234:5678 --dry-run",
+        ));
+    }
+    Ok(())
+}
+
 /// Whether any keyboard the configuration matches can be opened for
 /// reading (opened and closed at once; never grabbed).
 fn any_keyboard_readable(cfg: &Config, env: &Env) -> bool {
     app::scan_devices(env).unwrap_or_default().iter().any(|d| {
-        (d.kind == DeviceKind::Keyboard || d.kind == DeviceKind::Pointer && cfg.has_buttons())
+        (d.kind == DeviceKind::Keyboard
+            || d.kind == DeviceKind::Pointer && cfg.has_buttons()
+            || d.touchpad && cfg.has_gestures())
             && !d.is_own()
             && cfg.rules_for(d).is_some()
             && std::fs::File::open(&d.path).is_ok()
@@ -417,17 +449,8 @@ fn evdev_loop(
                     }
                 }
                 Ready::Hotplug => {
-                    let names: Vec<String> = inotify
-                        .as_ref()
-                        .and_then(|i| i.read_events().ok())
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter_map(|e| e.name.map(|n| n.to_string_lossy().into_owned()))
-                        .collect();
-                    for name in names {
-                        if let Some(info) = escapepod_evdev::info(&sysfs, &dev_dir, &name) {
-                            d.hotplug(&info, now(start));
-                        }
+                    for info in hotplugged(inotify.as_ref(), &sysfs, &dev_dir) {
+                        d.hotplug(&info, now(start));
                     }
                 }
                 Ready::Listener => {
@@ -445,6 +468,7 @@ fn evdev_loop(
                     }
                 }
                 Ready::Pointer(id) => d.pointer_ready(id, now(start)),
+                Ready::Touchpad(id) => d.touchpad_ready(id, now(start)),
             }
         }
         d.tick(now(start));
@@ -484,6 +508,10 @@ fn wait(
     for (id, p) in d.pointers() {
         tags.push(Ready::Pointer(id));
         fds.push(p.as_fd());
+    }
+    for (id, t) in d.touchpads() {
+        tags.push(Ready::Touchpad(id));
+        fds.push(t.as_fd());
     }
     let mut pfds: Vec<PollFd<'_>> = fds
         .iter()
@@ -595,12 +623,23 @@ pub fn status(socket: Option<&Path>, mode: &Mode, io: &mut Io<'_>) -> Result<Exi
 /// engine each to show the decision the daemon would make.
 pub struct Monitor<O: Opener> {
     keyboards: BTreeMap<DeviceId, (String, O::Keyboard, Engine)>,
+    touchpads: BTreeMap<DeviceId, (String, O::Touchpad)>,
+    /// Decides swipes as the daemon would; its key output is discarded.
+    swipes: escapepod_core::Session,
     buf: Vec<KeyEvent>,
     scratch: Vec<KeyEvent>,
 }
 
+fn node_name(d: &escapepod_evdev::DeviceInfo) -> String {
+    d.path
+        .file_name()
+        .map(|f| f.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 impl<O: Opener> Monitor<O> {
-    /// Opens every keyboard `cfg` matches, never Escape Pod's own.
+    /// Opens every keyboard `cfg` matches, never Escape Pod's own, and every
+    /// touchpad its rules give a gesture, read-only.
     pub fn open(opener: &mut O, cfg: &Config, devices: &[escapepod_evdev::DeviceInfo]) -> Self {
         let mut keyboards = BTreeMap::new();
         for (n, d) in devices
@@ -623,20 +662,65 @@ impl<O: Opener> Monitor<O> {
                 );
             }
         }
+        let mut touchpads = BTreeMap::new();
+        let mut swipes = escapepod_core::Session::default();
+        let first = u32::try_from(devices.len()).unwrap_or(u32::MAX / 2);
+        for (n, d) in devices.iter().enumerate().filter(|(_, d)| d.touchpad) {
+            let Some(rules) = cfg.rules_for(d).filter(|r| r.gestures().next().is_some()) else {
+                continue;
+            };
+            let Ok(pad) = opener.touchpad(&d.path) else {
+                continue;
+            };
+            let Some(resolution) = escapepod_evdev::Touchpad::resolution(&pad) else {
+                continue;
+            };
+            let id = DeviceId(first.saturating_add(u32::try_from(n).unwrap_or(u32::MAX / 2)));
+            swipes.add_touchpad(id, rules.clone(), resolution);
+            touchpads.insert(id, (node_name(d), pad));
+        }
         Self {
             keyboards,
+            touchpads,
+            swipes,
             buf: Vec::new(),
             scratch: Vec::new(),
         }
     }
 
-    /// Whether any keyboard is open.
+    /// Whether no keyboard or touchpad is open.
     pub fn is_empty(&self) -> bool {
-        self.keyboards.is_empty()
+        self.keyboards.is_empty() && self.touchpads.is_empty()
     }
 
-    /// Reads keyboard `id` and returns one record per key event.
+    /// Reads touchpad `id` and returns one record per finished or cancelled
+    /// swipe, by finger count, direction and decision only.
+    // Implements: ESC-SRS-126
+    fn touch_ready(&mut self, id: DeviceId, now: Instant) -> Vec<Record> {
+        let Some((name, pad)) = self.touchpads.get_mut(&id) else {
+            return Vec::new();
+        };
+        let mut inputs = Vec::new();
+        if escapepod_evdev::Touchpad::read_touch(pad, &mut inputs).is_err() {
+            self.touchpads.remove(&id);
+            return Vec::new();
+        }
+        let name = name.clone();
+        inputs
+            .into_iter()
+            .filter_map(|input| {
+                self.scratch.clear();
+                self.swipes.on_touch(id, input, now, &mut self.scratch)
+            })
+            .map(|d| monitor::swipe_record(&name, d, crate::output::now_utc()))
+            .collect()
+    }
+
+    /// Reads keyboard or touchpad `id` and returns its records.
     pub fn ready(&mut self, id: DeviceId, now: Instant, all_keys: bool) -> Vec<Record> {
+        if self.touchpads.contains_key(&id) {
+            return self.touch_ready(id, now);
+        }
         let Some((name, k, engine)) = self.keyboards.get_mut(&id) else {
             return Vec::new();
         };
@@ -665,6 +749,11 @@ impl<O: Opener> Monitor<O> {
     /// The keyboards, for the poll loop.
     pub fn keyboards(&self) -> impl Iterator<Item = (DeviceId, &O::Keyboard)> {
         self.keyboards.iter().map(|(&id, (_, k, _))| (id, k))
+    }
+
+    /// The touchpads, for the poll loop.
+    pub fn touchpads(&self) -> impl Iterator<Item = (DeviceId, &O::Touchpad)> {
+        self.touchpads.iter().map(|(&id, (_, t))| (id, t))
     }
 }
 
@@ -708,6 +797,10 @@ pub fn monitor(
             for (id, k) in m.keyboards() {
                 tags.push(Some(id));
                 fds.push(k.as_fd());
+            }
+            for (id, t) in m.touchpads() {
+                tags.push(Some(id));
+                fds.push(t.as_fd());
             }
             let mut pfds: Vec<PollFd<'_>> = fds
                 .iter()
@@ -851,6 +944,7 @@ mod tests {
             vendor: 1,
             product: 1,
             kind: DeviceKind::Keyboard,
+            touchpad: false,
         };
         let mut m = Monitor::open(&mut opener, &cfg, &[info]);
         assert!(!h.borrow().grabbed, "monitor never grabs");
@@ -877,6 +971,51 @@ mod tests {
         let text: String = recs.iter().map(|r| r.line(&mode)).collect();
         assert_eq!(text.lines().count(), 4);
         assert!(!text.contains("KEY_A") && !text.contains('\r') && !text.contains("\x1b["));
+    }
+
+    // Verifies: ESC-SRS-126
+    #[test]
+    fn monitor_reports_swipes_without_positions() {
+        let path = std::env::temp_dir().join(format!("escapepod-mon-{}.toml", std::process::id()));
+        std::fs::write(
+            &path,
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_LEFTCTRL','KEY_RIGHT']\n",
+        )
+        .unwrap();
+        let cfg = load(Some(&path), &Overrides::default(), &[]).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let mut opener = FakeOpener::default();
+        let pad = opener.add_touchpad(
+            "/dev/input/event10",
+            escapepod_core::Resolution::new(10, 10),
+        );
+        let info = DeviceInfo {
+            path: "/dev/input/event10".into(),
+            name: "Elan Touchpad".into(),
+            vendor: 1,
+            product: 1,
+            kind: DeviceKind::Pointer,
+            touchpad: true,
+        };
+        let mut m = Monitor::open(&mut opener, &cfg, &[info]);
+        assert!(!m.is_empty());
+        let id = m.touchpads().map(|(id, _)| id).next().unwrap();
+        pad.borrow_mut().inputs.extend([
+            escapepod_core::TouchInput::Fingers(3),
+            escapepod_core::TouchInput::Motion {
+                dx: -98765,
+                dy: 4567,
+            },
+            escapepod_core::TouchInput::Fingers(0),
+        ]);
+        let recs = m.ready(id, Instant::from_micros(10), false);
+        assert_eq!(recs.len(), 1);
+        assert_eq!(recs[0].key, "swipe-3-left");
+        assert_eq!(recs[0].decision.as_deref(), Some("sent"));
+        let json = recs[0].to_json().to_string();
+        for leaked in ["98765", "4567", "9876"] {
+            assert!(!json.contains(leaked), "{leaked} leaked: {json}");
+        }
     }
 }
 

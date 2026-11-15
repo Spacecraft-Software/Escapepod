@@ -11,8 +11,12 @@ use std::io;
 
 use std::time::Duration;
 
-use escapepod_core::{DeviceId, HeldKeys, Instant, KeyCode, KeyEvent, KeyValue, Session};
-use escapepod_evdev::{DeviceInfo, DeviceKind, Keyboard, Opener, Pointer, PointerEvent, Sink};
+use escapepod_core::{
+    DeviceId, HeldKeys, Instant, KeyCode, KeyEvent, KeyValue, Session, TouchInput,
+};
+use escapepod_evdev::{
+    DeviceInfo, DeviceKind, Keyboard, Opener, Pointer, PointerEvent, Sink, Touchpad,
+};
 use serde_json::{Value, json};
 
 use crate::config::Config;
@@ -70,6 +74,8 @@ pub struct Daemon<O: Opener, S: Sink> {
     pointers: BTreeMap<DeviceId, (DeviceInfo, O::Pointer)>,
     grabbed_pointers: BTreeSet<DeviceId>,
     waiting_pointers: BTreeSet<DeviceId>,
+    touchpads: BTreeMap<DeviceId, (DeviceInfo, O::Touchpad)>,
+    touch: Vec<TouchInput>,
     pointer_held: HeldKeys,
     next: u32,
     out: Vec<KeyEvent>,
@@ -93,6 +99,8 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             pointers: BTreeMap::new(),
             grabbed_pointers: BTreeSet::new(),
             waiting_pointers: BTreeSet::new(),
+            touchpads: BTreeMap::new(),
+            touch: Vec::new(),
             pointer_held: HeldKeys::default(),
             next: 0,
             out: Vec::new(),
@@ -130,6 +138,7 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
     fn is_open(&self, path: &std::path::Path) -> bool {
         self.keyboards.values().any(|k| k.info.path == path)
             || self.pointers.values().any(|(i, _)| i.path == path)
+            || self.touchpads.values().any(|(i, _)| i.path == path)
     }
 
     /// Opens `info` if the daemon should: a matched keyboard for a grab
@@ -183,6 +192,9 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
                     }
                 }
             }
+            // A touchpad that gesture rules name is read for swipes, never
+            // grabbed; without a resolution it stays a plain pointer.
+            DeviceKind::Pointer if self.add_touchpad(info) => true,
             // Unmatched pointers are observed; configured relative mice
             // are grabbed only when idle. Implements: ESC-SRS-053
             DeviceKind::Pointer => match self.opener.pointer(&info.path) {
@@ -204,6 +216,96 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
             },
             DeviceKind::Other => false,
         }
+    }
+
+    /// Opens `info` as a touchpad for swipes when it is one and its rules
+    /// map a gesture; returns whether it did.
+    // Implements: ESC-SRS-113, ESC-SRS-114
+    fn add_touchpad(&mut self, info: &DeviceInfo) -> bool {
+        if !info.touchpad {
+            return false;
+        }
+        let Some(rules) = self
+            .config
+            .rules_for(info)
+            .filter(|r| r.gestures().next().is_some())
+            .cloned()
+        else {
+            return false;
+        };
+        let dev = match self.opener.touchpad(&info.path) {
+            Ok(dev) => dev,
+            Err(e) => {
+                self.note(
+                    Severity::Warn,
+                    "DEVICE_OPEN_FAILED",
+                    format!("cannot open {} ({}): {e}", info.name, info.path.display()),
+                );
+                return false;
+            }
+        };
+        let Some(resolution) = dev.resolution() else {
+            self.note(
+                Severity::Warn,
+                "TOUCHPAD_NO_RESOLUTION",
+                format!(
+                    "{} reports no resolution, so a swipe cannot be measured in millimetres; its gesture rules are ignored",
+                    info.name
+                ),
+            );
+            return false;
+        };
+        let id = DeviceId(self.next);
+        self.next += 1;
+        self.session.add_touchpad(id, rules, resolution);
+        self.touchpads.insert(id, (info.clone(), dev));
+        true
+    }
+
+    /// Reads touchpad `id`: clicks mark held dual-role keys used, and a
+    /// finished swipe a rule matches sends its shortcut.
+    pub fn touchpad_ready(&mut self, id: DeviceId, now: Instant) {
+        let Some((info, pad)) = self.touchpads.get_mut(&id) else {
+            return;
+        };
+        self.touch.clear();
+        let presses = match pad.read_touch(&mut self.touch) {
+            Ok(n) => n,
+            Err(e) => {
+                let message = format!("{} stopped: {e}", info.name);
+                self.remove_touchpad(id);
+                self.note(Severity::Warn, "DEVICE_LOST", message);
+                return;
+            }
+        };
+        let device = info
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if presses > 0 {
+            self.session.on_pointer_press(now);
+        }
+        let inputs = std::mem::take(&mut self.touch);
+        for &input in &inputs {
+            if let Some(decision) = self.session.on_touch(id, input, now, &mut self.out) {
+                self.records
+                    .push(monitor::swipe_record(&device, decision, now_utc()));
+            }
+        }
+        self.touch = inputs;
+        self.flush();
+    }
+
+    fn remove_touchpad(&mut self, id: DeviceId) {
+        self.session.remove_device(id, &mut self.out);
+        self.touchpads.remove(&id);
+        self.flush();
+    }
+
+    /// The touchpad ids and devices, for the poll loop.
+    pub fn touchpads(&self) -> impl Iterator<Item = (DeviceId, &O::Touchpad)> {
+        self.touchpads.iter().map(|(&id, (_, t))| (id, t))
     }
 
     /// Grabs keyboard `id` exclusively once it is idle or its wait is over.
@@ -572,6 +674,16 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
                 self.remove_pointer(id);
             }
         }
+        let pads: Vec<_> = self
+            .touchpads
+            .iter()
+            .map(|(&id, (info, _))| (id, info.clone()))
+            .collect();
+        for (id, info) in pads {
+            if self.config.rules_for(&info) != cfg.rules_for(&info) {
+                self.remove_touchpad(id);
+            }
+        }
         let ids: Vec<DeviceId> = self.keyboards.keys().copied().collect();
         for id in ids {
             let Some(k) = self.keyboards.get(&id) else {
@@ -640,8 +752,11 @@ impl<O: Opener, S: Sink> Daemon<O, S> {
                 "name": k.info.name, "path": k.info.path.display().to_string(), "grabbed": k.grabbed,
             })).chain(self.pointers.iter().map(|(id, (info, _))| json!({
                 "name": info.name, "path": info.path.display().to_string(), "grabbed": self.grabbed_pointers.contains(id),
+            }))).chain(self.touchpads.values().map(|(info, _)| json!({
+                "name": info.name, "path": info.path.display().to_string(), "grabbed": false, "touchpad": true,
             }))).collect::<Vec<_>>(),
             "pointers": self.pointers.len(),
+            "touchpads": self.touchpads.len(),
             "held": self.session.held().keys().count(),
         })
     }
@@ -687,6 +802,7 @@ mod tests {
             vendor: 1,
             product: 1,
             kind: DeviceKind::Keyboard,
+            touchpad: false,
         }
     }
 
@@ -731,6 +847,7 @@ mod tests {
     fn mouse() -> DeviceInfo {
         DeviceInfo {
             kind: DeviceKind::Pointer,
+            touchpad: false,
             ..kb("/dev/input/event7", "mouse")
         }
     }
@@ -912,6 +1029,96 @@ mod tests {
 
     fn emitted(s: &FakeSink) -> Vec<KeyEvent> {
         s.0.borrow().clone()
+    }
+
+    fn touchpad() -> DeviceInfo {
+        DeviceInfo {
+            kind: DeviceKind::Pointer,
+            touchpad: true,
+            ..kb("/dev/input/event10", "Elan Touchpad")
+        }
+    }
+
+    fn swipe_config() -> Config {
+        let mut cfg = caps_config();
+        cfg.global = escapepod_core::Rules::builder()
+            .gesture(
+                3,
+                escapepod_core::Direction::Left,
+                vec![CTRL, KeyCode::from_name("KEY_RIGHT").unwrap()],
+                None,
+            )
+            .build()
+            .unwrap();
+        cfg
+    }
+
+    // Verifies: ESC-SRS-113, ESC-SRS-119, ESC-SRS-120, ESC-SRS-126
+    #[test]
+    fn a_configured_touchpad_sends_a_swipe_shortcut_without_a_grab() {
+        let (mut d, opener, sink) = daemon(swipe_config());
+        let pad = opener.add_touchpad(
+            "/dev/input/event10",
+            escapepod_core::Resolution::new(10, 10),
+        );
+        assert!(d.add(&touchpad(), t(0)));
+        assert_eq!(d.touchpads().count(), 1);
+        assert_eq!(d.pointers().count(), 0, "read as a touchpad, not a pointer");
+        pad.borrow_mut().inputs.extend([
+            TouchInput::Fingers(3),
+            TouchInput::Motion { dx: -300, dy: 10 },
+            TouchInput::Fingers(0),
+        ]);
+        d.touchpad_ready(DeviceId(0), t(1));
+        let right = KeyCode::from_name("KEY_RIGHT").unwrap();
+        assert_eq!(
+            emitted(&sink),
+            [
+                KeyEvent::press(CTRL),
+                KeyEvent::press(right),
+                KeyEvent::release(right),
+                KeyEvent::release(CTRL),
+            ]
+        );
+        let records = d.take_records();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].key, "swipe-3-left");
+        assert_eq!(records[0].decision.as_deref(), Some("sent"));
+        // The status report lists it, never as grabbed.
+        let status = d.status();
+        assert_eq!(status["touchpads"], 1);
+        // Removal leaves no key held.
+        pad.borrow_mut().gone = true;
+        d.touchpad_ready(DeviceId(0), t(2));
+        assert_eq!(d.touchpads().count(), 0);
+        assert!(d.session.held().is_empty());
+    }
+
+    #[test]
+    fn a_touchpad_without_a_resolution_stays_a_plain_pointer() {
+        let (mut d, opener, _) = daemon(swipe_config());
+        let _ = opener.add_touchpad("/dev/input/event10", None);
+        let _ = opener.add_pointer("/dev/input/event10");
+        assert!(d.add(&touchpad(), t(0)));
+        assert_eq!(d.touchpads().count(), 0);
+        assert_eq!(d.pointers().count(), 1);
+        assert!(
+            d.take_notes()
+                .iter()
+                .any(|n| n.code == "TOUCHPAD_NO_RESOLUTION")
+        );
+    }
+
+    // Verifies: ESC-SRS-107
+    #[test]
+    fn a_button_rule_never_grabs_a_touchpad() {
+        let (mut d, opener, _) = daemon(mouse_config());
+        // A touchpad's absolute axes cannot be forwarded.
+        let pad = opener.add_mapped_pointer("/dev/input/event10");
+        pad.borrow_mut().supported = false;
+        assert!(d.add(&touchpad(), t(0)));
+        d.tick(t(2000));
+        assert!(!pad.borrow().grabbed);
     }
 
     // Verifies: ESC-SRS-044, ESC-SRS-045
@@ -1128,6 +1335,7 @@ mod tests {
         d.add(&kb("/dev/input/event0", "laptop"), t(0));
         let ptr = DeviceInfo {
             kind: DeviceKind::Pointer,
+            touchpad: false,
             ..kb("/dev/input/event2", "touchpad")
         };
         assert!(d.add(&ptr, t(0)));

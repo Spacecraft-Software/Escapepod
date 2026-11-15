@@ -45,6 +45,36 @@ pub fn decision_name(d: Decision) -> String {
     }
 }
 
+/// A record of a finished or cancelled swipe, by finger count, direction
+/// and decision only: no position or motion value (ESC-SRS-126).
+// Implements: ESC-SRS-126
+pub fn swipe_record(
+    device: &str,
+    decision: escapepod_core::SwipeDecision,
+    timestamp: String,
+) -> Record {
+    use escapepod_core::SwipeDecision::{BelowThreshold, Cancelled, Sent, Unmapped};
+    let (gesture, value, what) = match decision {
+        Sent { fingers, direction } => (format!("swipe-{fingers}-{direction}"), "end", "sent"),
+        BelowThreshold { fingers, direction } => (
+            format!("swipe-{fingers}-{direction}"),
+            "end",
+            "below-threshold",
+        ),
+        Unmapped { fingers, direction } => {
+            (format!("swipe-{fingers}-{direction}"), "end", "unmapped")
+        }
+        Cancelled { fingers } => (format!("swipe-{fingers}"), "cancel", "cancelled"),
+    };
+    Record {
+        timestamp,
+        device: device.to_owned(),
+        key: gesture,
+        value,
+        decision: Some(what.to_owned()),
+    }
+}
+
 /// Builds the record for `ev`. An unmanaged key is `other` unless
 /// `all_keys`; its key code never leaves through this record otherwise.
 /// Implements: ESC-SRS-060, ESC-SRS-061

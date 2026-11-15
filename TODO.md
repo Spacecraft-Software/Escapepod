@@ -223,30 +223,30 @@ when that test passes. Identifiers are permanent.
 
 ## M7 — Touchpad gestures
 
-- [ ] T-122 P-051 ESC-SRS-113–128 and ESC-NEED-010 in `doc/requirements.toml` and the manual,
+- [x] T-122 P-051 ESC-SRS-113–128 and ESC-NEED-010 in `doc/requirements.toml` and the manual,
       ESC-SRS-107 amended, release gate renumbered M8; G1 re-entry record
-- [ ] T-123 P-052 Touchpad event model in `escapepod-core`: finger-count keys, slot positions,
+- [x] T-123 P-052 Touchpad event model in `escapepod-core`: finger-count keys, slot positions,
       resolution; swipe begin, accumulate, end, cancel (`ESC-SRS-115, 116, 118`)
-- [ ] T-124 P-052 Direction by the dominant axis; threshold in mm; one shortcut per swipe
+- [x] T-124 P-052 Direction by the dominant axis; threshold in mm; one shortcut per swipe
       (`ESC-SRS-116, 117, 121`)
-- [ ] T-125 P-052 Gesture map in `Rules` with validation; `Session` swipe path through the
+- [x] T-125 P-052 Gesture map in `Rules` with validation; `Session` swipe path through the
       ledger, press in order and release in reverse; held dual-role keys marked used
       (`ESC-SRS-119, 120, 125`)
-- [ ] T-126 P-053 Touchpads recognised and opened read-only, never grabbed, button rules
+- [x] T-126 P-053 Touchpads recognised and opened read-only, never grabbed, button rules
       included; resolution from the axis info, a touchpad without one refused with a warning
       (`ESC-SRS-107, 113, 114`)
-- [ ] T-127 P-053 Touchpad removal, hotplug and reload on the pointer paths
-- [ ] T-128 P-054 `[[gesture]]` config, global and per device, with limits and the 20 mm
+- [x] T-127 P-053 Touchpad removal, hotplug and reload on the pointer paths
+- [x] T-128 P-054 `[[gesture]]` config, global and per device, with limits and the 20 mm
       default (`ESC-SRS-122, 123, 127, 128`); `config check`, `--dry-run`, `device list`, `schema`, ICD,
       `schemas/config.schema.json`
-- [ ] T-129 P-054 X11 backend refuses gesture rules (`ESC-SRS-124`)
-- [ ] T-130 P-054 Swipes in logs, the status socket and `event monitor` by finger count,
+- [x] T-129 P-054 X11 backend refuses gesture rules (`ESC-SRS-124`)
+- [x] T-130 P-054 Swipes in logs, the status socket and `event monitor` by finger count,
       direction and decision only (`ESC-SRS-126`)
-- [ ] T-131 P-055 Recorded multi-touch traces replayed through the engine
-- [ ] T-132 P-055 Property test: output stays balanced with swipes interleaved
-- [ ] T-133 P-055 VM test: uinput multi-touch touchpad fixture, three-finger left swipe →
+- [x] T-131 P-055 Recorded multi-touch traces replayed through the engine
+- [x] T-132 P-055 Property test: output stays balanced with swipes interleaved
+- [x] T-133 P-055 VM test: uinput multi-touch touchpad fixture, three-finger left swipe →
       Super+Control+Right, pointer motion still passing
-- [ ] T-134 P-056 Manual: touchpad swipes section, Touchégg migration note, NixOS example
+- [x] T-134 P-056 Manual: touchpad swipes section, Touchégg migration note, NixOS example
 - [ ] T-135 P-056 Maintainer's configuration: swipes mapped on its X11 sessions and COSMIC;
       Touchégg and the cosmic-comp three-finger patch retired
 

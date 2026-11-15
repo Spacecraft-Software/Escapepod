@@ -28,7 +28,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use escapepod_core::{Chord, DEFAULT_CHORD, DualRole, KeyCode, Rules};
+use escapepod_core::{Chord, DEFAULT_CHORD, Direction, DualRole, KeyCode, Rules};
 use escapepod_evdev::DeviceInfo;
 use serde::Deserialize;
 use toml::Spanned;
@@ -59,6 +59,8 @@ struct File {
     #[serde(default)]
     button: Vec<ButtonEntry>,
     #[serde(default)]
+    gesture: Vec<GestureEntry>,
+    #[serde(default)]
     device: Vec<DeviceEntry>,
 }
 
@@ -86,6 +88,15 @@ struct ButtonEntry {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct GestureEntry {
+    fingers: Spanned<u8>,
+    direction: Spanned<String>,
+    keys: Vec<Spanned<String>>,
+    threshold_mm: Option<Spanned<u8>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DeviceEntry {
     name: Option<String>,
     id: Option<Spanned<String>>,
@@ -95,6 +106,7 @@ struct DeviceEntry {
     dual_role: Option<Vec<DualRoleEntry>>,
     remap: Option<Vec<RemapEntry>>,
     button: Option<Vec<ButtonEntry>>,
+    gesture: Option<Vec<GestureEntry>>,
 }
 
 /// How a device rule picks its device.
@@ -115,13 +127,26 @@ impl Matcher {
     }
 }
 
+/// A validated gesture rule: fingers, direction, shortcut, threshold.
+type GestureSpec = (u8, Direction, Vec<KeyCode>, Option<u8>);
+
 /// The mapping lists before they become [`Rules`].
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Mapping {
     dual: Vec<DualRole>,
     remap: Vec<(KeyCode, KeyCode)>,
     buttons: Vec<(KeyCode, Vec<KeyCode>)>,
+    gestures: Vec<GestureSpec>,
     tap_timeout: Option<Duration>,
+}
+
+impl Mapping {
+    fn with_gestures(&self, mut b: escapepod_core::RulesBuilder) -> escapepod_core::RulesBuilder {
+        for (fingers, direction, keys, threshold) in &self.gestures {
+            b = b.gesture(*fingers, *direction, keys.clone(), *threshold);
+        }
+        b
+    }
 }
 
 /// One validated `[[device]]` rule.
@@ -171,6 +196,15 @@ impl Config {
                 .iter()
                 .any(|d| d.rules.buttons().next().is_some())
     }
+    /// Whether any configured rule maps a touchpad swipe.
+    pub fn has_gestures(&self) -> bool {
+        self.global.gestures().next().is_some()
+            || self
+                .devices
+                .iter()
+                .any(|d| d.rules.gestures().next().is_some())
+    }
+
     /// The rules for `device`, or `None` when it is ignored.
     pub fn rules_for(&self, device: &DeviceInfo) -> Option<&Rules> {
         match self.devices.iter().find(|r| r.matcher.matches(device)) {
@@ -186,10 +220,12 @@ impl Config {
         self.global.dual_roles().next().is_none()
             && self.global.remaps().next().is_none()
             && self.global.buttons().next().is_none()
+            && self.global.gestures().next().is_none()
             && self.devices.iter().all(|d| {
                 d.rules.dual_roles().next().is_none()
                     && d.rules.remaps().next().is_none()
                     && d.rules.buttons().next().is_none()
+                    && d.rules.gestures().next().is_none()
             })
     }
 }
@@ -233,6 +269,7 @@ pub fn load(
         &file.dual_role,
         &file.remap,
         &file.button,
+        &file.gesture,
         file.tap_timeout_ms.as_ref(),
     )?;
     if let Some(map) = &overrides.map {
@@ -269,6 +306,7 @@ pub fn load(
         for (button, keys) in &m.buttons {
             b = b.button(*button, keys.clone());
         }
+        b = m.with_gestures(b);
         for &p in &protect {
             b = b.protect(p);
         }
@@ -294,6 +332,7 @@ pub fn load(
             d.dual_role.as_deref().unwrap_or(&file.dual_role),
             d.remap.as_deref().unwrap_or(&file.remap),
             d.button.as_deref().unwrap_or(&file.button),
+            d.gesture.as_deref().unwrap_or(&file.gesture),
             d.tap_timeout_ms.as_ref().or(file.tap_timeout_ms.as_ref()),
         )?;
         let mapping = if d.dual_role.is_none() && overrides.map.is_some() {
@@ -376,6 +415,7 @@ impl Ctx<'_> {
         dual: &[DualRoleEntry],
         remap: &[RemapEntry],
         buttons: &[ButtonEntry],
+        gestures: &[GestureEntry],
         timeout: Option<&Spanned<u64>>,
     ) -> Result<Mapping, AppError> {
         let dual = dual
@@ -432,6 +472,7 @@ impl Ctx<'_> {
                 Ok((button, keys))
             })
             .collect::<Result<_, AppError>>()?;
+        let gestures = self.gestures(gestures)?;
         let tap_timeout = timeout
             .map(|t| check_timeout(*t.get_ref(), Some(t.span().start), self))
             .transpose()?;
@@ -439,8 +480,72 @@ impl Ctx<'_> {
             dual,
             remap,
             buttons,
+            gestures,
             tap_timeout,
         })
+    }
+
+    /// Validates `[[gesture]]` entries.
+    // Implements: ESC-SRS-122, ESC-SRS-123, ESC-SRS-127
+    fn gestures(&self, entries: &[GestureEntry]) -> Result<Vec<GestureSpec>, AppError> {
+        entries
+            .iter()
+            .map(|entry| {
+                let fingers = *entry.fingers.get_ref();
+                if fingers != 3 && fingers != 4 {
+                    return Err(self.at(
+                        Some(entry.fingers.span().start),
+                        "a gesture swipes with three or four fingers",
+                    ));
+                }
+                let direction =
+                    Direction::from_name(entry.direction.get_ref()).ok_or_else(|| {
+                        self.at(
+                            Some(entry.direction.span().start),
+                            "a gesture direction is left, right, up or down",
+                        )
+                    })?;
+                let threshold = entry
+                    .threshold_mm
+                    .as_ref()
+                    .map(|t| {
+                        let mm = *t.get_ref();
+                        if (escapepod_core::MIN_GESTURE_THRESHOLD_MM
+                            ..=escapepod_core::MAX_GESTURE_THRESHOLD_MM)
+                            .contains(&mm)
+                        {
+                            Ok(mm)
+                        } else {
+                            Err(self.at(
+                                Some(t.span().start),
+                                "a gesture threshold is 5 to 100 millimetres",
+                            ))
+                        }
+                    })
+                    .transpose()?;
+                let keys = entry
+                    .keys
+                    .iter()
+                    .map(|key| {
+                        let parsed = self.key(key)?;
+                        if (0x100..0x160).contains(&parsed.code()) {
+                            return Err(self.at(
+                                Some(key.span().start),
+                                "shortcut keys must be keyboard keys",
+                            ));
+                        }
+                        Ok(parsed)
+                    })
+                    .collect::<Result<Vec<_>, AppError>>()?;
+                if keys.is_empty() || keys.len() > 8 {
+                    return Err(self.at(
+                        Some(entry.fingers.span().start),
+                        "a gesture shortcut needs one to eight keys",
+                    ));
+                }
+                Ok((fingers, direction, keys, threshold))
+            })
+            .collect()
     }
 
     fn key(&self, name: &Spanned<String>) -> Result<KeyCode, AppError> {
@@ -584,6 +689,47 @@ keys = ["KEY_LEFT"]
         }
     }
 
+    // Verifies: ESC-SRS-122, ESC-SRS-123, ESC-SRS-127, ESC-SRS-128
+    #[test]
+    fn gesture_rules_inherit_and_validate() {
+        let path = write(
+            r#"
+[[gesture]]
+fingers = 3
+direction = "left"
+keys = ["KEY_LEFTMETA", "KEY_LEFTCTRL", "KEY_RIGHT"]
+[[device]]
+name = "Elan Touchpad"
+[[device.gesture]]
+fingers = 4
+direction = "up"
+keys = ["KEY_LEFTMETA", "KEY_W"]
+threshold_mm = 30
+"#,
+        );
+        let cfg = load(Some(&path), &Overrides::default(), &[]).unwrap();
+        assert!(cfg.has_gestures());
+        let left = cfg.global.gesture(3, Direction::Left).unwrap();
+        assert_eq!((left.keys.len(), left.threshold_mm), (3, 20));
+        assert!(cfg.devices[0].rules.gesture(3, Direction::Left).is_none());
+        let up = cfg.devices[0].rules.gesture(4, Direction::Up).unwrap();
+        assert_eq!(up.threshold_mm, 30);
+        for content in [
+            "[[gesture]]\nfingers=2\ndirection='left'\nkeys=['KEY_A']\n",
+            "[[gesture]]\nfingers=5\ndirection='left'\nkeys=['KEY_A']\n",
+            "[[gesture]]\nfingers=3\ndirection='sideways'\nkeys=['KEY_A']\n",
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=[]\n",
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['BTN_LEFT']\n",
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_A','KEY_A']\n",
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_A']\nthreshold_mm=4\n",
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_A']\nthreshold_mm=101\n",
+            "[[gesture]]\nfingers=3\ndirection='left'\nkeys=['KEY_A']\nspeed=1\n",
+        ] {
+            let invalid = write(content);
+            load(Some(&invalid), &Overrides::default(), &[]).unwrap_err();
+        }
+    }
+
     fn write(text: &str) -> PathBuf {
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
@@ -604,6 +750,7 @@ keys = ["KEY_LEFT"]
             vendor,
             product,
             kind: escapepod_evdev::DeviceKind::Keyboard,
+            touchpad: false,
         }
     }
 
